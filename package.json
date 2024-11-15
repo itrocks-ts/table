@@ -1,0 +1,49 @@
+{
+	"author": {
+		"name": "Baptiste Pillot",
+		"email": "baptiste@pillot.fr"
+	},
+	"dependencies": {
+		"@itrocks/contenteditable": "latest",
+		"@itrocks/plugin": "latest"
+	},
+	"description": "A lightweight, modular HTML table offering near-spreadsheet features such as edit, freeze, lock, scroll, and more",
+	"devDependencies": {
+		"@itrocks/prepare-module": "latest",
+		"@types/node": "^22.9",
+		"sass": "^1.81",
+		"typescript": "5.6"
+	},
+	"files": [
+		"LICENSE",
+		"README.md",
+		"**/*.d.ts",
+		"**/*.js",
+		"!demo/**",
+		"!node_modules/**",
+		"!src/**"
+	],
+	"keywords": [
+		"drag",
+		"drop",
+		"edit",
+		"editable",
+		"table",
+		"fix",
+		"fixed",
+		"lock",
+		"reorder",
+		"scroll"
+	],
+	"license": "LGPL-3.0-or-later",
+	"module": "./table.js",
+	"name": "@itrocks/table",
+	"repository": "https://github.com/itrocks-ts/table",
+	"scripts": {
+		"build": "tsc && sass demo:demo",
+		"prepare": "prepare-module"
+	},
+	"type": "module",
+	"types": "./table.d.ts",
+	"version": "0.0.2"
+}
