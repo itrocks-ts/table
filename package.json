@@ -28,12 +28,13 @@
 		"drop",
 		"edit",
 		"editable",
-		"table",
-		"fix",
-		"fixed",
+		"freeze",
+		"frozen",
+		"it.rocks",
 		"lock",
 		"reorder",
-		"scroll"
+		"scroll",
+		"table"
 	],
 	"license": "LGPL-3.0-or-later",
 	"module": "./table.js",
@@ -45,5 +46,5 @@
 	},
 	"type": "module",
 	"types": "./table.d.ts",
-	"version": "0.0.3"
+	"version": "0.0.4"
 }
