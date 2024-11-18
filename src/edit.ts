@@ -151,7 +151,6 @@ export default class TableEdit extends Plugin<Table>
 		return range
 	}
 
-
 	inEditable(node: Node | Range | RangeCopy): boolean
 	{
 		if ((node instanceof Range) || (node instanceof RangeCopy)) {

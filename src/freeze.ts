@@ -72,7 +72,7 @@ export default class TableFreeze extends Plugin<Table>
 			previousBottom = actualBottom
 			table.styleSheet.push(`
 				${table.selector} > tfoot > tr:nth-last-child(${counter}) > * {
-					bottom: ${this.position(bottom, counter, row.firstElementChild as HTMLTableCellElement, 'bottom')};
+					bottom: ${this.position(Math.floor(bottom), counter, row.firstElementChild as HTMLTableCellElement, 'bottom')};
 				}
 			`)
 			counter ++
@@ -97,7 +97,7 @@ export default class TableFreeze extends Plugin<Table>
 			previousTop = actualTop
 			table.styleSheet.push(`
 				${table.selector} > thead > tr:nth-child(${counter}) > * {
-					top: ${this.position(top, counter, row.firstElementChild as HTMLTableCellElement, 'top')};
+					top: ${this.position(Math.ceil(top), counter, row.firstElementChild as HTMLTableCellElement, 'top')};
 				}
 			`)
 			counter ++
@@ -124,7 +124,7 @@ export default class TableFreeze extends Plugin<Table>
 			previousLeft = actualLeft
 			table.styleSheet.push(`
 				${table.selector} > * > tr > :nth-child(${counter}) {
-					left: ${this.position(left, counter, colCell, 'left')};
+					left: ${this.position(Math.ceil(left), counter, colCell, 'left')};
 				}
 			`)
 			bodySel.push(`${table.selector} > tbody > tr > :nth-child(${counter})`)
@@ -158,7 +158,7 @@ export default class TableFreeze extends Plugin<Table>
 			previousRight = actualRight
 			table.styleSheet.push(`
 				${table.selector} > * > tr > :nth-last-child(${counter}) {
-					right: ${this.position(right, counter, colCell, 'right')};
+					right: ${this.position(Math.floor(right), counter, colCell, 'right')};
 				}
 			`)
 			bodySel.push(`${table.selector} > tbody > tr > :nth-last-child(${counter})`)
