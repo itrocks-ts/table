@@ -46,5 +46,5 @@
 	},
 	"type": "module",
 	"types": "./table.d.ts",
-	"version": "0.0.7"
+	"version": "0.0.8"
 }
