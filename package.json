@@ -41,12 +41,15 @@
 	"license": "LGPL-3.0-or-later",
 	"module": "./table.js",
 	"name": "@itrocks/table",
-	"repository": "https://github.com/itrocks-ts/table",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/itrocks-ts/table.git"
+	},
 	"scripts": {
 		"build": "tsc && sass demo:demo",
 		"prepare": "prepare-module"
 	},
 	"type": "module",
 	"types": "./table.d.ts",
-	"version": "0.0.10"
+	"version": "0.0.11"
 }
