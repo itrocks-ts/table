@@ -23,12 +23,14 @@
 		"!node_modules/**",
 		"!src/**"
 	],
+	"homepage": "https://it.rocks",
 	"keywords": [
 		"drag",
 		"drop",
 		"edit",
 		"editable",
 		"freeze",
+		"front-end",
 		"frozen",
 		"it.rocks",
 		"lock",
@@ -46,5 +48,5 @@
 	},
 	"type": "module",
 	"types": "./table.d.ts",
-	"version": "0.0.9"
+	"version": "0.0.10"
 }
