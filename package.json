@@ -11,7 +11,7 @@
 	"devDependencies": {
 		"@itrocks/prepare-module": "latest",
 		"@types/node": "^22.9",
-		"sass": "^1.81",
+		"sass": "^1.83",
 		"typescript": "5.6"
 	},
 	"files": [
@@ -19,9 +19,8 @@
 		"README.md",
 		"**/*.d.ts",
 		"**/*.js",
-		"!demo/**",
-		"!node_modules/**",
-		"!src/**"
+		"!/demo",
+		"!/src"
 	],
 	"homepage": "https://it.rocks",
 	"keywords": [
@@ -46,10 +45,10 @@
 		"url": "git+https://github.com/itrocks-ts/table.git"
 	},
 	"scripts": {
-		"build": "tsc && sass demo:demo",
+		"build": "tsc && sass --no-source-map demo:demo",
 		"prepare": "prepare-module"
 	},
 	"type": "module",
 	"types": "./table.d.ts",
-	"version": "0.0.11"
+	"version": "0.0.12"
 }
