@@ -1,9 +1,9 @@
-import Plugin      from '../../node_modules/@itrocks/plugin/plugin.js'
-import TableEdit   from '../edit.js'
-import TableFreeze from '../freeze.js'
-import Table       from '../table.js'
+import { Plugin }      from '../../node_modules/@itrocks/plugin/plugin.js'
+import { TableEdit }   from '../edit.js'
+import { TableFreeze } from '../freeze.js'
+import { Table }       from '../table.js'
 
-export default class TableEditFreezeScroll extends Plugin<Table>
+export class TableEditFreezeScroll extends Plugin<Table>
 {
 	tableFreeze: TableFreeze
 

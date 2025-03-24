@@ -1,10 +1,10 @@
-import TableFreeze from '../freeze.js'
-import Table       from '../table'
+import { TableFreeze } from '../freeze.js'
+import { Table }       from '../table'
 
 /**
  * This plugin has no use and no effect if your table has border-collapse: collapse
  */
-export default class TableFreezeInheritBackground extends TableFreeze
+export class TableFreezeInheritBackground extends TableFreeze
 {
 	tableStyle: CSSStyleDeclaration
 

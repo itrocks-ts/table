@@ -1,9 +1,9 @@
 import { HTMLEditableElement } from '../../node_modules/@itrocks/contenteditable/contenteditable.js'
-import Plugin                  from '../../node_modules/@itrocks/plugin/plugin.js'
-import TableEdit               from '../edit.js'
-import Table                   from '../table.js'
+import { Plugin }              from '../../node_modules/@itrocks/plugin/plugin.js'
+import { TableEdit }           from '../edit.js'
+import { Table }               from '../table.js'
 
-export default class TableEditMove extends Plugin<Table>
+export class TableEditMove extends Plugin<Table>
 {
 	tableEdit: TableEdit
 

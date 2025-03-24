@@ -1,12 +1,12 @@
-import Plugin                     from '../../node_modules/@itrocks/plugin/plugin.js'
-import TableFreeze                from '../freeze.js'
+import { Plugin }                 from '../../node_modules/@itrocks/plugin/plugin.js'
+import { TableFreeze }            from '../freeze.js'
 import { HTMLTableFreezeElement } from '../freeze.js'
-import Table                      from '../table.js'
+import { Table }                  from '../table.js'
 
 /**
  * This plugin has no use and no effect if your table has border-collapse: separate (default)
  */
-export default class TableFreezeInheritBorder extends Plugin<Table>
+export class TableFreezeInheritBorder extends Plugin<Table>
 {
 	tableStyle:  CSSStyleDeclaration
 	tableFreeze: TableFreeze

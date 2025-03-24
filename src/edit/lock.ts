@@ -1,6 +1,6 @@
-import Plugin    from '../../node_modules/@itrocks/plugin/plugin.js'
-import TableEdit from '../edit.js'
-import Table     from '../table.js'
+import { Plugin }    from '../../node_modules/@itrocks/plugin/plugin.js'
+import { TableEdit } from '../edit.js'
+import { Table }     from '../table.js'
 
 class Options
 {
@@ -10,7 +10,7 @@ class Options
 	}
 }
 
-export default class TableEditLock extends Plugin<Table>
+export class TableEditLock extends Plugin<Table>
 {
 	options = new Options
 

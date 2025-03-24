@@ -1,8 +1,8 @@
 import { HTMLEditableElement } from '../../node_modules/@itrocks/contenteditable/contenteditable.js'
-import Plugin                  from '../../node_modules/@itrocks/plugin/plugin.js'
-import TableEdit               from '../edit.js'
-import TableFreeze             from '../freeze.js'
-import Table                   from '../table.js'
+import { Plugin }              from '../../node_modules/@itrocks/plugin/plugin.js'
+import { TableEdit }           from '../edit.js'
+import { TableFreeze }         from '../freeze.js'
+import { Table }               from '../table.js'
 
 const zIndex = {
 	back:     false,
@@ -10,7 +10,7 @@ const zIndex = {
 	selected: ''
 }
 
-export default class TableEditFreezeHide extends Plugin<Table>
+export class TableEditFreezeHide extends Plugin<Table>
 {
 	readonly tableFreeze: TableFreeze
 	readonly tableEdit:   TableEdit

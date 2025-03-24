@@ -37,7 +37,7 @@ function nextTableId(table: Table)
 
 export type Options = PluginOptions<Table>
 
-export default class Table extends HasPlugins<Table>
+export class Table extends HasPlugins<Table>
 {
 	readonly id:       number
 	readonly selector: string

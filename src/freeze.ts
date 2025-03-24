@@ -1,5 +1,5 @@
-import Plugin from '../node_modules/@itrocks/plugin/plugin.js'
-import Table  from './table.js'
+import { Plugin } from '../node_modules/@itrocks/plugin/plugin.js'
+import { Table }  from './table.js'
 
 export type HTMLTableFreezeElement = HTMLTableCellElement | HTMLTableColElement
 
@@ -10,7 +10,7 @@ interface FullIndex
 	row:    string
 }
 
-export default class TableFreeze extends Plugin<Table>
+export class TableFreeze extends Plugin<Table>
 {
 	columns:          NodeListOf<HTMLTableFreezeElement>
 	full?:            FullIndex

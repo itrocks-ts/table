@@ -1,7 +1,7 @@
-import ContentEditable         from '../node_modules/@itrocks/contenteditable/contenteditable.js'
+import { ContentEditable }     from '../node_modules/@itrocks/contenteditable/contenteditable.js'
 import { HTMLEditableElement } from '../node_modules/@itrocks/contenteditable/contenteditable.js'
-import Plugin                  from '../node_modules/@itrocks/plugin/plugin.js'
-import Table                   from './table.js'
+import { Plugin }              from '../node_modules/@itrocks/plugin/plugin.js'
+import { Table }               from './table.js'
 
 let editable:      HTMLEditableElement  | undefined
 let selected:      HTMLTableCellElement | undefined
@@ -35,7 +35,7 @@ export class RangeCopy
 
 }
 
-export default class TableEdit extends Plugin<Table>
+export class TableEdit extends Plugin<Table>
 {
 	zIndex = '2'
 

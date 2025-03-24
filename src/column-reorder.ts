@@ -1,8 +1,8 @@
-import Plugin                     from '../node_modules/@itrocks/plugin/plugin.js'
+import { Plugin }                 from '../node_modules/@itrocks/plugin/plugin.js'
 import { HTMLTableFreezeElement } from './freeze.js'
-import Table                      from './table.js'
+import { Table }                  from './table.js'
 
-export default class TableColumnReorder extends Plugin<Table>
+export class TableColumnReorder extends Plugin<Table>
 {
 	reorderCells: NodeListOf<HTMLTableFreezeElement>
 
