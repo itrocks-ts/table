@@ -1,6 +1,6 @@
-import { ContentEditable }     from '../node_modules/@itrocks/contenteditable/contenteditable.js'
-import { HTMLEditableElement } from '../node_modules/@itrocks/contenteditable/contenteditable.js'
-import { Plugin }              from '../node_modules/@itrocks/plugin/plugin.js'
+import { ContentEditable }     from '../../contenteditable/contenteditable.js'
+import { HTMLEditableElement } from '../../contenteditable/contenteditable.js'
+import { Plugin }              from '../../plugin/plugin.js'
 import { Table }               from './table.js'
 
 let editable:      HTMLEditableElement  | undefined

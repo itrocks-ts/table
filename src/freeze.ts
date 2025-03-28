@@ -1,4 +1,4 @@
-import { Plugin } from '../node_modules/@itrocks/plugin/plugin.js'
+import { Plugin } from '../../plugin/plugin.js'
 import { Table }  from './table.js'
 
 export type HTMLTableFreezeElement = HTMLTableCellElement | HTMLTableColElement

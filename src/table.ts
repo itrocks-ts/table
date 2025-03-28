@@ -1,4 +1,4 @@
-import { HasPlugins, Options as PluginOptions } from '../node_modules/@itrocks/plugin/plugin.js'
+import { HasPlugins, Options as PluginOptions } from '../../plugin/plugin.js'
 
 const styleSheets = new CSSStyleSheet
 document.adoptedStyleSheets.push(styleSheets)

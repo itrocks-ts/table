@@ -1,4 +1,4 @@
-import { Plugin }      from '../../node_modules/@itrocks/plugin/plugin.js'
+import { Plugin }      from '../../../plugin/plugin.js'
 import { TableEdit }   from '../edit.js'
 import { TableFreeze } from '../freeze.js'
 import { Table }       from '../table.js'
