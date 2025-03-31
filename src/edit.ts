@@ -99,12 +99,12 @@ export class TableEdit extends Plugin<Table>
 			const contentEditable = editable.editable
 			const text            = contentEditable.value()
 			if (text.includes(contentEditable.br())) {
-				if (editable.style.lineHeight) {
+				if ('lineHeight' in editable.style) {
 					editable.style.removeProperty('line-height')
 				}
 			}
-			else if (!editable.style.lineHeight) {
-				editable.style.lineHeight = editable.style.minHeight
+			else {
+				editable.style.lineHeight ??= editable.style.minHeight
 			}
 			this.setSelectedText(text)
 		})

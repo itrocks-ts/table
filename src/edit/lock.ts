@@ -63,7 +63,7 @@ export class TableEditLock extends Plugin<Table>
 					if (this.colCell(editable).matches(value)) editable = undefined
 					break
 				default:
-					if (!style) style = getComputedStyle(editable)
+					style ??= getComputedStyle(editable)
 					if (style[index as keyof CSSStyleDeclaration] === value) editable = undefined
 			}
 		}
