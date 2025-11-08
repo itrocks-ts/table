@@ -22,11 +22,11 @@ export class TableFeed extends Plugin<Table>
 		const loaded     = document.createElement('div')
 		const offsetUrl  = url + (url.includes('?') ? '&' : '?') + 'offset=' + tbody.querySelectorAll(':scope > tr').length
 		loaded.innerHTML = await (await fetch(offsetUrl)).text()
-		const loadedBody = loaded.querySelector('table > tbody')
-		if (!loadedBody) return
+		const container  = loaded.querySelector('tbody > tr')?.parentElement ?? loaded.querySelector('tr')?.parentElement
+		if (!container) return
 
-		while (loadedBody.firstChild) {
-			tbody.append(loadedBody.firstChild)
+		while (container.firstChild) {
+			tbody.append(container.firstChild)
 		}
 		this.observe()
 	}
@@ -34,7 +34,8 @@ export class TableFeed extends Plugin<Table>
 	observe()
 	{
 		const table    = this.of.element
-		const lastCell = table.querySelector(':scope > tbody > tr:last-child > td:last-child')
+		const lastCell = table.querySelector(':scope > tbody > tr:last-child')
+			?? table.querySelector(':scope > tr:last-child')
 		if (!lastCell) return
 
 		this.observer?.disconnect()
