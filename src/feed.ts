@@ -19,10 +19,14 @@ export class TableFeed extends Plugin<Table>
 		const url   = table.dataset.feed ?? table.closest<HTMLFormElement>('form[action]')?.action
 		if (!tbody || !url) return
 
-		const loaded     = document.createElement('div')
-		const offsetUrl  = url + (url.includes('?') ? '&' : '?') + 'offset=' + tbody.querySelectorAll(':scope > tr').length
-		loaded.innerHTML = await (await fetch(offsetUrl)).text()
-		const container  = loaded.querySelector('tbody > tr')?.parentElement ?? loaded.querySelector('tr')?.parentElement
+		const offset      = tbody.querySelectorAll(':scope > tr').length
+		const offsetUrl   = url + (url.includes('?') ? '&' : '?') + 'offset=' + offset
+		const visibleRows = Math.ceil(tbody.clientHeight / offset)
+		const requestInit = { headers: { 'xhr-visible-rows': String(visibleRows) } }
+
+		const loaded      = document.createElement('div')
+		loaded.innerHTML  = await (await fetch(offsetUrl, requestInit)).text()
+		const container   = loaded.querySelector('tbody > tr')?.parentElement ?? loaded.querySelector('tr')?.parentElement
 		if (!container) return
 
 		while (container.firstChild) {
