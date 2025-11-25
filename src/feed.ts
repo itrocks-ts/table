@@ -22,7 +22,7 @@ export class TableFeed extends Plugin<Table>
 		const offset      = tbody.querySelectorAll(':scope > tr').length
 		const offsetUrl   = url + (url.includes('?') ? '&' : '?') + 'offset=' + offset
 		const visibleRows = Math.ceil(tbody.clientHeight / offset)
-		const requestInit = { headers: { 'xhr-visible-rows': String(visibleRows) } }
+		const requestInit = { headers: { 'xhr-info': JSON.stringify({ visibleRows }) } }
 
 		const loaded      = document.createElement('div')
 		loaded.innerHTML  = await (await fetch(offsetUrl, requestInit)).text()
