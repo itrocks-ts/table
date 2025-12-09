@@ -10,9 +10,9 @@
 	"description": "A lightweight, modular HTML table offering near-spreadsheet features such as edit, freeze, lock, scroll, and more",
 	"devDependencies": {
 		"@itrocks/prepare-module": "latest",
-		"@types/node": "^22.9",
-		"sass": "^1.83",
-		"typescript": "~5.8"
+		"@types/node": "^24.10",
+		"sass": "^1.95",
+		"typescript": "~5.9"
 	},
 	"files": [
 		"LICENSE",
@@ -49,5 +49,5 @@
 	},
 	"type": "module",
 	"types": "./table.d.ts",
-	"version": "0.0.20"
+	"version": "0.0.21"
 }
