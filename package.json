@@ -24,18 +24,25 @@
 	],
 	"homepage": "https://it.rocks",
 	"keywords": [
+		"column",
+		"columns",
 		"drag",
 		"drop",
 		"edit",
 		"editable",
+		"feed",
 		"freeze",
 		"front-end",
 		"frozen",
 		"it.rocks",
 		"lock",
 		"reorder",
+		"row",
+		"rows",
 		"scroll",
-		"table"
+		"table",
+		"UI",
+		"UX"
 	],
 	"license": "LGPL-3.0-or-later",
 	"module": "./table.js",
@@ -49,5 +56,5 @@
 	},
 	"type": "module",
 	"types": "./table.d.ts",
-	"version": "0.0.21"
+	"version": "0.0.22"
 }
