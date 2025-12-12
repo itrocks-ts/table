@@ -1,8 +1,9 @@
-import { Plugin }    from '../../../plugin/plugin.js'
-import { TableEdit } from '../edit.js'
-import { Table }     from '../table.js'
+import { Plugin }        from '../../../plugin/plugin.js'
+import { PluginOptions } from '../../../plugin/plugin.js'
+import { TableEdit }     from '../edit.js'
+import { Table }         from '../table.js'
 
-class Options
+class Options extends PluginOptions
 {
 	nonEditableConditions: { [index: string]: string } = {
 		'closest': 'tfoot, thead, [data-lock]',
@@ -10,19 +11,8 @@ class Options
 	}
 }
 
-export class TableEditLock extends Plugin<Table>
+export class TableEditLock extends Plugin<Table, Options>
 {
-	options = new Options
-
-	constructor(table: Table, options: Partial<Options> = {})
-	{
-		super(table)
-		Object.assign(this.options, options)
-
-		const tableEdit = table.plugins.TableEdit as TableEdit
-		const superClosestEditableCell = tableEdit.closestEditableCell
-		tableEdit.closestEditableCell = target => this.closestEditableCell(superClosestEditableCell.call(tableEdit, target))
-	}
 
 	colCell(cell: HTMLTableCellElement)
 	{
@@ -70,9 +60,16 @@ export class TableEditLock extends Plugin<Table>
 		return editable
 	}
 
-	static defaultOptions()
+	defaultOptions()
 	{
-		return new Options
+		return new Options()
+	}
+
+	init()
+	{
+		const tableEdit = this.of.plugins.TableEdit as TableEdit
+		const superClosestEditableCell = tableEdit.closestEditableCell
+		tableEdit.closestEditableCell = target => this.closestEditableCell(superClosestEditableCell.call(tableEdit, target))
 	}
 
 }

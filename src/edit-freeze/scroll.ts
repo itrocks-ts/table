@@ -5,14 +5,13 @@ import { Table }       from '../table.js'
 
 export class TableEditFreezeScroll extends Plugin<Table>
 {
-	tableFreeze: TableFreeze
+	tableFreeze!: TableFreeze
 
-	constructor(table: Table)
+	init()
 	{
-		super(table)
-		this.tableFreeze = table.plugins.TableFreeze as TableFreeze
+		this.tableFreeze = this.of.plugins.TableFreeze as TableFreeze
 
-		const tableEdit = table.plugins.TableEdit as TableEdit
+		const tableEdit = this.of.plugins.TableEdit as TableEdit
 		const superSetSelectedCell = tableEdit.setSelectedCell
 		tableEdit.setSelectedCell  = cell => superSetSelectedCell.call(tableEdit, this.scrollToCell(cell))
 	}

@@ -6,12 +6,6 @@ export class TableFeed extends Plugin<Table>
 
 	observer: IntersectionObserver | undefined = undefined
 
-	constructor(table: Table)
-	{
-		super(table)
-		this.observe()
-	}
-
 	async feed()
 	{
 		const table = this.of.element
@@ -32,6 +26,11 @@ export class TableFeed extends Plugin<Table>
 		while (container.firstChild) {
 			tbody.append(container.firstChild)
 		}
+		this.observe()
+	}
+
+	init()
+	{
 		this.observe()
 	}
 

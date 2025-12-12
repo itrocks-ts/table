@@ -12,24 +12,22 @@ const zIndex = {
 
 export class TableEditFreezeHide extends Plugin<Table>
 {
-	readonly tableFreeze: TableFreeze
-	readonly tableEdit:   TableEdit
+	tableFreeze!: TableFreeze
+	tableEdit!:   TableEdit
 
-	constructor(table: Table)
+	init()
 	{
-		super(table)
+		const tableEdit   = this.tableEdit   = this.of.plugins.TableEdit   as TableEdit
+		const tableFreeze = this.tableFreeze = this.of.plugins.TableFreeze as TableFreeze
 
-		const tableEdit   = this.tableEdit   = table.plugins.TableEdit   as TableEdit
-		const tableFreeze = this.tableFreeze = table.plugins.TableFreeze as TableFreeze
-
-		const scrollable = this.tableFreeze.closestScrollable(table.element)
+		const scrollable = this.tableFreeze.closestScrollable(this.of.element)
 		if (!scrollable) return
 
 		tableFreeze.full = { column: '2', corner: '6', row: '4' }
 		tableEdit.zIndex = '7'
 
-		table.addEventListener(scrollable, 'scroll', () => this.autoHide())
-		table.addEventListener(window,     'resize', () => this.autoHide())
+		this.of.addEventListener(scrollable, 'scroll', () => this.autoHide())
+		this.of.addEventListener(window,     'resize', () => this.autoHide())
 
 		const superCreateEditable = tableEdit.createEditable
 		tableEdit.createEditable = (selected, selectedStyle) => this.addEditableEventListeners(

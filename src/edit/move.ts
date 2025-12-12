@@ -5,12 +5,11 @@ import { Table }               from '../table.js'
 
 export class TableEditMove extends Plugin<Table>
 {
-	tableEdit: TableEdit
+	tableEdit!: TableEdit
 
-	constructor(table: Table)
+	init()
 	{
-		super(table)
-		this.tableEdit = table.plugins.TableEdit as TableEdit
+		this.tableEdit = this.of.plugins.TableEdit as TableEdit
 
 		const superCreateEditable = this.tableEdit.createEditable
 		this.tableEdit.createEditable = (selected, selectedStyle) => this.setEditableKeydownListener(

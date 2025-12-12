@@ -8,28 +8,20 @@ import { Table }                  from '../table.js'
  */
 export class TableFreezeInheritBorder extends Plugin<Table>
 {
-	tableStyle:  CSSStyleDeclaration
-	tableFreeze: TableFreeze
-
-	constructor(table: Table)
-	{
-		super(table)
-		this.tableFreeze = table.plugins.TableFreeze as TableFreeze
-
-		this.tableStyle = getComputedStyle(table.element)
-		if (this.tableStyle.borderCollapse !== 'collapse') return
-
-		const superPosition    = this.tableFreeze.position
-		this.tableFreeze.position = (position, counter, colCell, side) => superPosition.call(
-			this.of.plugins.TableFreeze, this.position(position, counter, colCell, side), counter, colCell, side
-		)
-	}
 
 	init()
 	{
-		if (this.tableStyle.borderCollapse !== 'collapse') return
-		const tableFreeze = this.tableFreeze
-		const table    = this.of
+		const tableFreeze = this.of.plugins.TableFreeze as TableFreeze
+		const tableStyle  = getComputedStyle(this.of.element)
+		if (tableStyle.borderCollapse !== 'collapse') return
+
+		const superPosition  = tableFreeze.position
+		tableFreeze.position = (position, counter, colCell, side) => superPosition.call(
+			this.of.plugins.TableFreeze, this.position(position, counter, colCell, side), counter, colCell, side
+		)
+		if (tableStyle.borderCollapse !== 'collapse') return
+
+		const table = this.of
 
 		// table
 		table.styleSheet.push(`

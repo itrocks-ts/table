@@ -12,22 +12,18 @@ interface FullIndex
 
 export class TableFreeze extends Plugin<Table>
 {
-	columns:          NodeListOf<HTMLTableFreezeElement>
-	full?:            FullIndex
-	leftColumnCount:  number
-	rightColumnCount: number
-	zIndex            = '1'
-
-	constructor(table: Table)
-	{
-		super(table)
-		this.columns          = this.getColumns()
-		this.leftColumnCount  = this.countLeftColumns()
-		this.rightColumnCount = this.countRightColumns()
-	}
+	columns!:          NodeListOf<HTMLTableFreezeElement>
+	full?:             FullIndex
+	leftColumnCount!:  number
+	rightColumnCount!: number
+	zIndex             = '1'
 
 	init()
 	{
+		this.columns          = this.getColumns()
+		this.leftColumnCount  = this.countLeftColumns()
+		this.rightColumnCount = this.countRightColumns()
+
 		this.freezeFootRows()
 		this.freezeHeadRows()
 		this.freezeLeftColumns()

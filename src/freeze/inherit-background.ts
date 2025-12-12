@@ -1,21 +1,16 @@
 import { TableFreeze } from '../freeze.js'
-import { Table }       from '../table'
 
 /**
  * This plugin has no use and no effect if your table has border-collapse: collapse
  */
 export class TableFreezeInheritBackground extends TableFreeze
 {
-	tableStyle: CSSStyleDeclaration
-
-	constructor(table: Table)
-	{
-		super(table)
-		this.tableStyle = getComputedStyle(table.element)
-	}
+	tableStyle!: CSSStyleDeclaration
 
 	init()
 	{
+		this.tableStyle = getComputedStyle(this.of.element)
+
 		if (this.tableStyle.borderCollapse !== 'separate') return
 		const table = this.of
 

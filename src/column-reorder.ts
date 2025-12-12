@@ -4,18 +4,17 @@ import { Table }                  from './table.js'
 
 export class TableColumnReorder extends Plugin<Table>
 {
-	reorderCells: NodeListOf<HTMLTableFreezeElement>
+	reorderCells!: NodeListOf<HTMLTableFreezeElement>
 
-	constructor(table: Table)
+	init()
 	{
-		super(table)
-
 		this.reorderCells = this.getReorderCells()
 
-		let downed:   HTMLTableCellElement | undefined
-		let dragging: HTMLTableCellElement | undefined
-		let mouse     = new DOMRect
-		let mouseFrom = new DOMRect
+		let   downed:     HTMLTableCellElement | undefined
+		let   dragging:   HTMLTableCellElement | undefined
+		let   mouse     = new DOMRect
+		let   mouseFrom = new DOMRect
+		const table     = this.of
 		for (const cell of Array.from(this.reorderCells)) {
 			table.addEventListener(cell, 'mousedown', event => {
 				console.log('mousedown', event.target)
