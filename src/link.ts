@@ -2,13 +2,15 @@ import { Plugin }        from '../../plugin/plugin.js'
 import { PluginOptions } from '../../plugin/plugin.js'
 import { Table }         from './table.js'
 
-type ValueCallback = (element: Element) => ({ element: Element, value: string } | undefined)
+type AttributeValue = string | string[] | ValueCallback
+type ElementValue   = { element: Element, value: string }
+type ValueCallback  = (element: Element) => (ElementValue | undefined)
 
 class Options extends PluginOptions
 {
 	call: (url: string) => void = function(url) { window.location.href = url }
-	href: string | ValueCallback = 'data-href'
-	id:   string | ValueCallback = 'data-id'
+	href: AttributeValue = ['data-href', 'data-link']
+	id:   AttributeValue = 'data-id'
 	link: (href: string, id?: string) => string = function(href, id) {
 		return id ? (href + (href.endsWith('/') ? '' : '/') + id) : href
 	}
@@ -40,9 +42,24 @@ export class TableLink extends Plugin<Table, Options>
 		}
 	}
 
+	protected getClosestElement(target: Element, attributes: string[])
+	{
+		return target.closest('[' + attributes.join('],[') + ']') ?? undefined
+	}
+
 	protected getCol(columnIndex: number): HTMLElement | undefined
 	{
 		return this.of.element.querySelector('colgroup')?.querySelectorAll('col')?.[columnIndex]
+	}
+
+	protected getElementValue(element: Element | undefined, attributes: string[]): ElementValue | undefined
+	{
+		if (!element) return
+		for (const attribute of attributes) {
+			if (element?.hasAttribute(attribute)) {
+				return { element, value: element.getAttribute(attribute) ?? '' }
+			}
+		}
 	}
 
 	protected getHeadCell(columnIndex: number): HTMLElement | undefined
@@ -51,22 +68,24 @@ export class TableLink extends Plugin<Table, Options>
 		return row ? this.getCell(row, columnIndex) : undefined
 	}
 
-	protected getHref(target: Element, attribute: string, cell: HTMLTableCellElement, idElement?: Element)
+	protected getHref(target: Element, attributes: string | string[], cell: HTMLTableCellElement, idElement?: Element)
 	{
-		let element = target.closest('[' + attribute + ']') ?? undefined
+		if (typeof attributes === 'string') attributes = [attributes]
+		let element = this.getClosestElement(target, attributes)
 		if (element && idElement?.contains(element)) element = undefined
-		if (!element) for (const getFunc of [this.getHeadCell, this.getCol]) {
-			element = getFunc.call(this, cell.cellIndex)
-			if (element?.hasAttribute(attribute)) break
+		if (element) return this.getElementValue(element, attributes)
+		for (const getFunc of [this.getHeadCell, this.getCol]) {
+			element     = getFunc.call(this, cell.cellIndex)
+			const value = this.getElementValue(element, attributes)
+			if (value) return value
 		}
-		if (element) return { element, value: element.getAttribute(attribute) ?? '' }
 	}
 
-	protected getId(target: Element, attribute: string)
+	protected getId(target: Element, attributes: string | string[])
 	{
-		const element = target.closest('[' + attribute + ']')
-		const value   = element?.getAttribute(attribute)
-		if (element && value) return { element, value }
+		if (typeof attributes === 'string') attributes = [attributes]
+		const element = this.getClosestElement(target, attributes)
+		return this.getElementValue(element, attributes)
 	}
 
 	init()
