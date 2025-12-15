@@ -1,4 +1,4 @@
-import { HasPlugins, Options as PluginOptions } from '../../plugin/plugin.js'
+import { HasPlugins, Options } from '../../plugin/plugin.js'
 
 const styleSheets = new CSSStyleSheet
 document.adoptedStyleSheets.push(styleSheets)
@@ -35,8 +35,6 @@ function nextTableId(table: Table)
 	return tableCounter
 }
 
-export type Options = PluginOptions<Table>
-
 export class Table extends HasPlugins<Table>
 {
 	readonly id:       number
@@ -45,7 +43,7 @@ export class Table extends HasPlugins<Table>
 	readonly onReset    = [] as (() => void)[]
 	readonly styleSheet = [] as string[]
 
-	constructor(public readonly element: HTMLTableElement, options: Partial<Options> = {})
+	constructor(public readonly element: HTMLTableElement, options: Partial<Options<Table>> = {})
 	{
 		super(options)
 
@@ -91,18 +89,18 @@ export class Table extends HasPlugins<Table>
 
 }
 
-export function tableByElement(element: HTMLTableElement, options: Partial<Options> = {})
+export function tableByElement(element: HTMLTableElement, options: Partial<Options<Table>> = {})
 {
 	return new Table(element, options)
 }
 
 export function tableByElements(
-	elements: Array<HTMLTableElement>|NodeListOf<HTMLTableElement>, options: Partial<Options> = {}
+	elements: Array<HTMLTableElement>|NodeListOf<HTMLTableElement>, options: Partial<Options<Table>> = {}
 ) {
 	return Array.from(elements).map(element => tableByElement(element, options))
 }
 
-export function tableBySelector(selector: string, options: Partial<Options> = {})
+export function tableBySelector(selector: string, options: Partial<Options<Table>> = {})
 {
 	return tableByElements(document.body.querySelectorAll<HTMLTableElement>(selector), options)
 }
