@@ -2,14 +2,16 @@ import { TableColumnReorder }           from '../src/column-reorder.js'
 import { TableFreeze }                  from '../src/freeze.js'
 import { TableFreezeInheritBackground } from '../src/freeze/inherit-background.js'
 import { TableFreezeInheritBorder }     from '../src/freeze/inherit-border.js'
-import { Options, tableBySelector }     from '../src/table.js'
+import { Options }                      from '../src/table.js'
+import { Table }                        from '../src/table.js'
+import { tableBySelector }              from '../src/table.js'
 import { TableEdit }                    from '../src/edit.js'
 import { TableEditLock }                from '../src/edit/lock.js'
 import { TableEditMove }                from '../src/edit/move.js'
 import { TableEditFreezeHide }          from '../src/edit-freeze/hide.js'
 import { TableEditFreezeScroll }        from '../src/edit-freeze/scroll.js'
 
-const options: Partial<Options> = {
+const options: Options<Table> = {
 	plugins: [
 		TableColumnReorder,
 		TableEdit,

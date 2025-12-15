@@ -35,6 +35,8 @@ function nextTableId(table: Table)
 	return tableCounter
 }
 
+export { Options }
+
 export class Table extends HasPlugins<Table>
 {
 	readonly id:       number
