@@ -83,7 +83,7 @@ table {
 		counter-increment: line;
 		font-weight: normal;
 
-		&:before {
+		&::before {
 			content: counter(line);
 		}
 
