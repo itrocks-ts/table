@@ -16,8 +16,8 @@ export class TableColumnReorder extends Plugin<Table>
 		let   mouseFrom = new DOMRect
 		const table     = this.of
 		for (const cell of Array.from(this.reorderCells)) {
-			table.addEventListener(cell, 'mousedown', event => {
-				console.log('mousedown', event.target)
+			table.addEventListener(cell, 'pointerdown', event => {
+				console.log('pointerdown', event.target)
 				downed    = event.target as HTMLTableCellElement
 				mouseFrom = new DOMRect(mouse.x, mouse.y)
 			})

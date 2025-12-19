@@ -48,7 +48,7 @@ export class TableEdit extends Plugin<Table>
 				z-index: ${this.zIndex};
 			}
 		`)
-		table.addEventListener(table.element, 'mousedown', event => {
+		table.addEventListener(table.element, 'pointerdown', event => {
 			const cell = this.closestEditableCell(event.target)
 			if (!cell) return
 			this.selectCell(cell)
