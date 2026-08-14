@@ -114,7 +114,7 @@ export class TableFreeze extends Plugin<Table>
 		const bodySel:   string[] = []
 		const cornerSel: string[] = []
 		let counter = 1, left = .0, previousLeft = table.element.getBoundingClientRect().left
-		for (const colCell of Array.from(this.columns).slice(this.leftColumnCount)) {
+		for (const colCell of Array.from(this.columns).slice(0, this.leftColumnCount)) {
 			const actualLeft = colCell.getBoundingClientRect().left
 			left += actualLeft - previousLeft
 			previousLeft = actualLeft
@@ -148,7 +148,7 @@ export class TableFreeze extends Plugin<Table>
 		const bodySel:   string[] = []
 		const cornerSel: string[] = []
 		let counter = 1, right = .0, previousRight = table.element.getBoundingClientRect().right
-		for (const colCell of Array.from(this.columns).reverse().slice(this.rightColumnCount)) {
+		for (const colCell of Array.from(this.columns).reverse().slice(0, this.rightColumnCount)) {
 			const actualRight = colCell.getBoundingClientRect().right
 			right += previousRight - actualRight
 			previousRight = actualRight

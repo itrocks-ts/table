@@ -29,6 +29,10 @@ table {
 		white-space: nowrap;
 	}
 
+	> * > tr > *.column-reorder {
+		background: #fff6cc;
+	}
+
 	// technical col width
 
 	> thead > tr:first-child > :first-child,

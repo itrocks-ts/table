@@ -1,4 +1,5 @@
 import { TableColumnReorder }           from '../src/column-reorder.js'
+import { TableColumnReorderFreeze }     from '../src/column-reorder-freeze.js'
 import { TableFreeze }                  from '../src/freeze.js'
 import { TableFreezeInheritBackground } from '../src/freeze/inherit-background.js'
 import { TableFreezeInheritBorder }     from '../src/freeze/inherit-border.js'
@@ -18,6 +19,7 @@ const options: Options<Table> = {
 		TableEditLock,
 		TableEditMove,
 		TableFreeze,
+		TableColumnReorderFreeze,
 		TableFreezeInheritBackground,
 		TableFreezeInheritBorder,
 		TableEditFreezeHide,
