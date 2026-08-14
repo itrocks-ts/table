@@ -33,6 +33,10 @@ table {
 		background: #fff6cc;
 	}
 
+	> thead > tr > * {
+		user-select: none;
+	}
+
 	// technical col width
 
 	> thead > tr:first-child > :first-child,
