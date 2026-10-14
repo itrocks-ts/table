@@ -15,7 +15,8 @@ export class TableColumnReorderFreeze extends Plugin<Table>
 
 		reorder.options.isReorderable = header => {
 			const index = this.of.cellColumnNumber(header)
-			return (index >= freeze.leftColumnCount) && (index < freeze.columns.length - freeze.rightColumnCount)
+			const row   = header.parentElement as HTMLTableRowElement
+			return (index >= freeze.leftColumnCount) && (index < row.cells.length - freeze.rightColumnCount)
 		}
 	}
 

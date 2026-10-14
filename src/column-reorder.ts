@@ -13,9 +13,11 @@ interface Drag extends Press
 	initial:   number
 	maximum:   number
 	minimum:   number
+	remove:    boolean
 	scroll?:   HTMLElement
 	time?:     number
 	x:         number
+	y:         number
 }
 
 interface Press
@@ -23,6 +25,7 @@ interface Press
 	header: HTMLTableCellElement
 	id:     number
 	origin: number
+	y:      number
 }
 
 const clamp          = (value: number) => Math.max(0, Math.min(1, value))
@@ -43,6 +46,11 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 	{
 		this.frame = undefined
 		const drag             = this.drag!
+		this.updateState(drag)
+		if (drag.remove) {
+			drag.time = undefined
+			return
+		}
 		const pointerDirection = drag.direction
 		drag.direction         = 0
 		const scrollDirection  = this.scroll(drag, time)
@@ -66,12 +74,26 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		if (!drag) return
 		const changed = drag.index !== drag.initial
 		if (!commit && changed) this.move(drag, drag.initial)
-		for (const cell of drag.cells) cell.classList.remove('column-reorder')
+		const removed = commit && drag.remove
+		if (removed) {
+			for (const row of this.rows()) {
+				row.cells[drag.index]?.remove()
+			}
+			drag.col?.remove()
+		}
+		for (const cell of drag.cells) {
+			cell.classList.remove('column-reorder', 'moving', 'removing')
+		}
 		document.documentElement.classList.remove('column-reorder')
 		activeDrag = undefined
 		this.drag  = undefined
 		if (this.of.element.hasPointerCapture(drag.id)) this.of.element.releasePointerCapture(drag.id)
-		if (commit && changed) this.options.onReorder?.(drag.header)
+		if (removed) {
+			this.options.onRemove?.(drag.header)
+		}
+		else if (commit && changed) {
+			this.options.onReorder?.(drag.header)
+		}
 	}
 
 	init()
@@ -110,6 +132,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 			after ? target.after(drag.col) : target.before(drag.col)
 		}
 		drag.index = targetIndex
+		this.updateState(drag)
 	}
 
 	protected onPointer(event: PointerEvent)
@@ -118,7 +141,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 			if (activeDrag || this.press || (event.button !== 0)) return
 			const header = (event.target as Element).closest<HTMLTableCellElement>('th, td')
 			if (!header || (header.parentElement !== this.triggerRow())) return
-			this.press = { header, id: event.pointerId, origin: event.clientX }
+			this.press = { header, id: event.pointerId, origin: event.clientX, y: event.clientY }
 			return
 		}
 
@@ -134,7 +157,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 				return
 			}
 			event.preventDefault()
-			this.updatePointer(event.clientX)
+			this.updatePointer(event.clientX, event.clientY)
 			if (this.frame !== undefined) {
 				cancelAnimationFrame(this.frame)
 				this.frame = undefined
@@ -147,13 +170,13 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		}
 
 		if (!this.drag) {
-			if (Math.abs(event.clientX - state.origin) < this.options.threshold) return
+			if (Math.hypot(event.clientX - state.origin, event.clientY - state.y) < this.options.threshold) return
 			this.press = undefined
-			this.start(state, event.clientX)
+			this.start(state, event.clientX, event.clientY)
 		}
 		if (!this.drag) return
 		event.preventDefault()
-		this.updatePointer(event.clientX)
+		this.updatePointer(event.clientX, event.clientY)
 	}
 
 	protected requestFrame()
@@ -203,7 +226,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		return undefined
 	}
 
-	protected start(press: Press, x: number)
+	protected start(press: Press, x: number, y: number)
 	{
 		if (activeDrag) return
 		const headers     = Array.from(this.triggerRow().cells)
@@ -227,13 +250,16 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 			initial,
 			maximum,
 			minimum,
+			remove: false,
 			scroll: this.scrollContainer(),
-			x
+			x,
+			y
 		}
 		this.drag  = drag
 		activeDrag = this
 		document.documentElement.classList.add('column-reorder')
 		for (const cell of drag.cells) cell.classList.add('column-reorder')
+		this.updateState(drag)
 		this.requestFrame()
 	}
 
@@ -259,12 +285,31 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		return this.of.element.tHead?.rows[0] ?? this.of.element.tBodies[0]?.rows[0]
 	}
 
-	protected updatePointer(x: number)
+	protected updateState(drag: Drag)
+	{
+		if (this.options.onRemove) {
+			const rect    = this.of.element.getBoundingClientRect()
+			const headers = this.triggerRow().cells
+			const first   = headers[drag.minimum].getBoundingClientRect()
+			const last    = headers[drag.maximum].getBoundingClientRect()
+			const left    = Math.max(rect.left, first.left, headers[drag.minimum - 1]?.getBoundingClientRect().right ?? rect.left)
+			const right   = Math.min(rect.right, last.right, headers[drag.maximum + 1]?.getBoundingClientRect().left ?? rect.right)
+			drag.remove = (drag.x < left) || (drag.x > right) || (drag.y < rect.top) || (drag.y > rect.bottom)
+		}
+		for (const cell of drag.cells) {
+			cell.classList.toggle('removing', drag.remove)
+			cell.classList.toggle('moving', !drag.remove && (drag.index !== drag.initial))
+		}
+	}
+
+	protected updatePointer(x: number, y: number)
 	{
 		const drag = this.drag!
-		if (x === drag.x) return
+		if ((x === drag.x) && (y === drag.y)) return
 		drag.direction = Math.sign(x - drag.x) as Direction
 		drag.x         = x
+		drag.y         = y
+		this.updateState(drag)
 		this.requestFrame()
 	}
 
@@ -273,6 +318,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 export class TableColumnReorderOptions extends PluginOptions
 {
 	isReorderable?: (header: HTMLTableCellElement) => boolean
+	onRemove?:      (header: HTMLTableCellElement) => void
 	onReorder?:     (header: HTMLTableCellElement) => void
 	threshold     = 10
 }
