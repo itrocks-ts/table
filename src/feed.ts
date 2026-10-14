@@ -14,7 +14,8 @@ export class TableFeed extends Plugin<Table>
 		if (!tbody || !url) return
 
 		const offset      = tbody.querySelectorAll(':scope > tr').length
-		const offsetUrl   = url + (url.includes('?') ? '&' : '?') + 'offset=' + offset
+		const params      = this.params(offset)
+		const offsetUrl   = url + (url.includes('?') ? '&' : '?') + params.toString()
 		const visibleRows = Math.ceil(tbody.clientHeight / offset)
 		const requestInit = { headers: { 'xhr-info': JSON.stringify({ visibleRows }) } }
 
@@ -27,6 +28,17 @@ export class TableFeed extends Plugin<Table>
 			tbody.append(container.firstChild)
 		}
 		this.observe()
+	}
+
+	fieldSelector(fields: string)
+	{
+		return fields.split(/\s+/).filter(Boolean).map(field => {
+			const start    = field.startsWith('*')
+			const end      = field.endsWith('*')
+			const operator = start ? (end ? '*=' : '$=') : (end ? '^=' : '=')
+			const name     = field.slice(start ? 1 : 0, end ? -1 : undefined)
+			return `:is(input, select, textarea)[name${operator}"${CSS.escape(name)}"]`
+		}).join(', ')
 	}
 
 	init()
@@ -47,6 +59,20 @@ export class TableFeed extends Plugin<Table>
 			{ root: table, threshold: .1 }
 		)
 		this.observer.observe(lastCell)
+	}
+
+	params(offset: number)
+	{
+		const params   = new URLSearchParams({ offset: offset.toString() })
+		const table    = this.of.element
+		const selector = this.fieldSelector(table.dataset.feedFields ?? '')
+		if (!selector) return params
+
+		const fields = table.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(selector)
+		for (const field of fields) {
+			params.append(field.name, field.value)
+		}
+		return params
 	}
 
 }
