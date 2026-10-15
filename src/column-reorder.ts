@@ -51,7 +51,6 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		drag.direction         = 0
 		const scrollDirection  = this.scroll(drag, time)
 		if (scrollDirection) this.requestFrame()
-		if (drag.remove) return
 		const direction = pointerDirection || scrollDirection
 		const target    = direction ? this.target(drag, direction) : drag.index
 		if (target !== drag.index) this.move(drag, target)
@@ -122,8 +121,9 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 	protected move(drag: Drag, targetIndex: number)
 	{
 		const after = drag.index < targetIndex
-		for (const cell of drag.cells) {
-			const target = (cell.parentElement as HTMLTableRowElement).cells[targetIndex]
+		for (const row of this.rows()) {
+			const cell   = row.cells[drag.index]
+			const target = row.cells[targetIndex]
 			after ? target.after(cell) : target.before(cell)
 		}
 		if (drag.col) {

@@ -13,7 +13,7 @@ function classList()
 	}
 }
 
-function fixture(options = {})
+function fixture(options = {}, names = ['select', 'name', 'email'])
 {
 	const globals = ['document', 'requestAnimationFrame', 'cancelAnimationFrame', 'getComputedStyle']
 	const previous = globals.map(name => globalThis[name])
@@ -23,7 +23,7 @@ function fixture(options = {})
 	globalThis.getComputedStyle = () => ({ overflowX: 'visible' })
 	const makeRow = () => {
 		const row = { cells: [] }
-		row.cells = ['select', 'name', 'email'].map(name => ({
+		row.cells = names.map(name => ({
 			name,
 			parentElement: row,
 			classList: classList(),
@@ -108,6 +108,67 @@ test('auto-scroll reaches either limit with a stationary pointer at or beyond th
 				f.reorder.finish(false)
 				f.restore()
 			}
+		}
+	}
+})
+
+test('columns keep moving outside either edge during removal and auto-scroll', () => {
+	for (const x of [-25, 325]) {
+		const f = fixture({
+			isReorderable: header => !['select', 'actions'].includes(header.name)
+		}, ['select', 'name', 'email', 'city', 'country', 'phone', 'actions'])
+		try {
+			let scrollLeft = x < 0 ? 300 : 0
+			const container = {
+				clientWidth: 300,
+				scrollWidth: 700,
+				get scrollLeft() { return scrollLeft },
+				set scrollLeft(value) { scrollLeft = Math.max(0, Math.min(400, value)) },
+				getBoundingClientRect: () => ({ left: 0, right: 300 })
+			}
+			f.element.parentElement = container
+			globalThis.getComputedStyle = element => ({ overflowX: element === container ? 'auto' : 'visible' })
+			for (const row of f.rows) {
+				for (const cell of row.cells) {
+					cell.getBoundingClientRect = () => {
+						const left = cell.name === 'select' ? 0
+							: cell.name === 'actions' ? 280 : row.cells.indexOf(cell) * 100 - scrollLeft
+						return { left, right: left + (cell.name === 'actions' ? 20 : 100), top: 100, bottom: 140 }
+					}
+				}
+			}
+			const header = f.rows[0].cells[x < 0 ? 4 : 1]
+			const pointer = (type, clientX) => f.reorder.onPointer({
+				type, clientX, clientY: 120, pointerId: 1, button: 0, target: header, preventDefault() {}
+			})
+			const initialOrder = f.rows[0].cells.map(cell => cell.name)
+			pointer('pointerdown', 150)
+			pointer('pointermove', x)
+			assert.equal(f.reorder.drag.remove, true)
+			f.reorder.animate(0)
+			assert.equal(f.reorder.drag.index, x < 0 ? 2 : 3)
+			for (let time = 16; (f.reorder.frame !== undefined) && (time <= 1000); time += 16) {
+				f.reorder.animate(time)
+			}
+			assert.equal(scrollLeft, x < 0 ? 0 : 400)
+			assert.equal(f.reorder.drag.index, x < 0 ? 1 : 5)
+			assert.equal(f.reorder.drag.remove, true)
+			assert.equal(header.classList.contains('removing'), true)
+			assert.deepEqual(f.calls, [])
+			if (x < 0) {
+				pointer('pointercancel', x)
+				for (const row of f.rows) assert.deepEqual(row.cells.map(cell => cell.name), initialOrder)
+				assert.deepEqual(f.calls, [])
+			}
+			else {
+				pointer('pointerup', x)
+				for (const row of f.rows) assert.equal(row.cells.some(cell => cell.name === header.name), false)
+				assert.deepEqual(f.calls, [['remove', header.name]])
+			}
+		}
+		finally {
+			f.reorder.finish(false)
+			f.restore()
 		}
 	}
 })
