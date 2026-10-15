@@ -76,6 +76,42 @@ function fixture(options = {})
 	}
 }
 
+test('auto-scroll reaches either limit with a stationary pointer at or beyond the edge', () => {
+	for (const onRemove of [undefined, () => {}]) {
+		for (const x of [-25, 25, 275, 325]) {
+			const f = fixture({ onRemove })
+			try {
+				let scrollLeft = 100
+				const container = {
+					clientWidth: 300,
+					scrollWidth: 500,
+					get scrollLeft() { return scrollLeft },
+					set scrollLeft(value) { scrollLeft = Math.max(0, Math.min(200, value)) },
+					getBoundingClientRect: () => ({ left: 0, right: 300 })
+				}
+				f.element.parentElement = container
+				globalThis.getComputedStyle = element => ({ overflowX: element === container ? 'auto' : 'visible' })
+				f.pointer('pointerdown', 150)
+				f.pointer('pointermove', x < 150 ? 120 : 250)
+				f.reorder.animate(0)
+				assert.equal(f.reorder.drag.index, x < 150 ? f.reorder.drag.minimum : f.reorder.drag.maximum)
+				f.pointer('pointermove', x)
+				for (let time = 16; (f.reorder.frame !== undefined) && (time <= 1000); time += 16) {
+					f.reorder.animate(time)
+				}
+				assert.equal(scrollLeft, x < 150 ? 0 : 200, `pointer at ${x}, removal ${!!onRemove}`)
+				assert.equal(f.reorder.frame, undefined)
+				assert.equal(f.reorder.drag.index, x < 150 ? f.reorder.drag.minimum : f.reorder.drag.maximum)
+				assert.deepEqual(f.calls, [])
+			}
+			finally {
+				f.reorder.finish(false)
+				f.restore()
+			}
+		}
+	}
+})
+
 test('dropping on selection, after the data, above or below removes all column cells', () => {
 	for (const [x, y] of [[50, 120], [350, 120], [150, 90], [150, 410]]) {
 		const f = fixture()

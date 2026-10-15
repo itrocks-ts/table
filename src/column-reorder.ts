@@ -28,36 +28,33 @@ interface Press
 	y:      number
 }
 
+let activeDrag: TableColumnReorder | undefined
+
 const clamp          = (value: number) => Math.max(0, Math.min(1, value))
 const maxScrollSpeed = 800
 const penetration    = 10
 const scrollZone     = 50
 
-let activeDrag: TableColumnReorder | undefined
-
 export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 {
-	protected drag?:        Drag
-	protected frame?:       number
-	protected press?:       Press
+	protected drag?:  Drag
+	protected frame?: number
+	protected press?: Press
 	protected suppressClick = false
 
 	protected animate(time: number)
 	{
 		this.frame = undefined
-		const drag             = this.drag!
+		const drag = this.drag!
 		this.updateState(drag)
-		if (drag.remove) {
-			drag.time = undefined
-			return
-		}
 		const pointerDirection = drag.direction
 		drag.direction         = 0
 		const scrollDirection  = this.scroll(drag, time)
-		const direction        = pointerDirection || scrollDirection
-		const target           = direction ? this.target(drag, direction) : drag.index
-		if (target !== drag.index) this.move(drag, target)
 		if (scrollDirection) this.requestFrame()
+		if (drag.remove) return
+		const direction = pointerDirection || scrollDirection
+		const target    = direction ? this.target(drag, direction) : drag.index
+		if (target !== drag.index) this.move(drag, target)
 	}
 
 	defaultOptions()
@@ -68,7 +65,9 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 	protected finish(commit: boolean)
 	{
 		this.press = undefined
-		if (this.frame !== undefined) cancelAnimationFrame(this.frame)
+		if (this.frame !== undefined) {
+			cancelAnimationFrame(this.frame)
+		}
 		this.frame = undefined
 		const drag = this.drag
 		if (!drag) return
@@ -204,7 +203,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		}
 
 		const previousTime = drag.time
-		drag.time = time
+		drag.time          = time
 		if (previousTime === undefined) return direction
 		const previousScroll  = container.scrollLeft
 		container.scrollLeft += speed * maxScrollSpeed * (time - previousTime) / 1000
@@ -320,5 +319,5 @@ export class TableColumnReorderOptions extends PluginOptions
 	isReorderable?: (header: HTMLTableCellElement) => boolean
 	onRemove?:      (header: HTMLTableCellElement) => void
 	onReorder?:     (header: HTMLTableCellElement) => void
-	threshold     = 10
+	threshold = 10
 }
