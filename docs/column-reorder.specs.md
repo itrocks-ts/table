@@ -112,17 +112,21 @@ model, or sending it to a server is the responsibility of `onReorder`.
 
 The current code already provides the primary user flow:
 
-- delegated event handling on the drag-handle row and consistent use of `PointerEvent`;
+- delegated event handling on the drag-handle row and consistent use of `PointerEvent` for mouse, pen and touch;
+- `touch-action: none` and text-selection prevention on drag-handle cells, installed before each gesture starts;
+  both axes are reserved to allow vertical column removal. Native scrolling remains available outside that row;
 - a configurable horizontal threshold, pointer capture, and computation batching with `requestAnimationFrame`;
 - direct, live insertion of the cell at the same index in every row returned by `table.rows`;
 - movement of the corresponding `<col>` when one is found;
 - a 10-pixel penetration threshold, direction tracking, and rectangle recalculation on every relevant frame;
 - automatic scrolling of the first horizontally scrollable ancestor, using the specified areas and speed;
-- commit on `pointerup`, restoration on Escape, `pointercancel`, and reset, and suppression of the following click;
+- commit on `pointerup`, restoration on Escape, `pointercancel`, loss of table pointer capture, and reset;
+- suppression of the click following a drag, including delayed touch clicks, while preserving the next tap;
 - `.column-reorder` classes, the `onReorder` callback, `isReorderable` barriers, and Freeze integration.
 
-The implementation currently has no dedicated automated test suite. The guarantees above were therefore established
-by reading the code and demo, not through a cross-browser test matrix.
+Regression tests in `test/column-reorder.test.mjs` cover reordering, removal, scrolling, cancellation, pointer types
+and click suppression. Chromium touch emulation also checks taps, dragging, vertical removal, body scrolling and the
+first-`tbody` fallback. Physical mobile devices and other browser engines have not been verified.
 
 ## Known limitations and unsupported configurations
 
@@ -147,19 +151,17 @@ by reading the code and demo, not through a cross-browser test matrix.
 - **Interactive controls**: contrary to the specification, the current code does not exclude links, buttons, fields,
   editable content, or `draggable` elements from the drag handle area. Horizontal movement starting from one of them
   may reorder the column and suppress its click.
-- **Multi-touch**: the primary button is filtered, but `event.isPrimary` is not. Multiple pointers are therefore not a
-  reliably supported scenario.
-- **Touch input**: no dedicated `touch-action` rule is installed. The browser may prioritize native scrolling and send
-  `pointercancel` before dragging starts.
-- **Text selection**: no dedicated `user-select` rule is installed, so unwanted text selection may remain visible
-  after some mouse gestures.
+- **Multi-touch**: only the primary pointer can arm a drag. Other pointer IDs cannot move or finish it; gestures using
+  several fingers to manipulate columns are not provided.
+- **Touch scrolling**: native panning and zooming are disabled on the drag-handle row so horizontal reordering and
+  vertical removal remain available. Start native scrolling or zooming outside that row.
 - **Keyboard and assistive technologies**: no keyboard reordering mechanism, ARIA attribute, or new-position
   announcement is provided. Escape only cancels a pointer gesture.
 
 ### Lifecycle, presentation, and performance
 
-- **Capture or window loss**: `lostpointercapture`, window blur, and removal of the table from the document are not
-  observed. Without `pointerup` or `pointercancel`, classes and global state may remain active.
+- **Window loss**: window blur and removal of the table from the document are not observed directly. Without
+  `pointerup`, `pointercancel` or loss of table pointer capture, classes and global state may remain active.
 - **Capture failure**: exceptions from `setPointerCapture()` are not caught.
 - **Global cursor**: the class is added to `html`, but the current plugin provides no cursor rule; the application must
   still define the desired rendering.

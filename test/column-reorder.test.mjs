@@ -62,13 +62,20 @@ function fixture(options = {}, names = ['select', 'name', 'email'])
 		onReorder: header => calls.push(['reorder', header.name]),
 		...options
 	})
-	reorder.of = { element }
+	const listeners = []
+	reorder.of = {
+		element,
+		onReset: [],
+		selector: 'table.test',
+		styleSheet: [],
+		addEventListener: (element, type, listener, options) => listeners.push({ element, type, listener, options })
+	}
 	const pointer = (type, x, y = 120) => reorder.onPointer({
-		type, clientX: x, clientY: y, pointerId: 1, button: 0,
+		type, clientX: x, clientY: y, pointerId: 1, button: 0, isPrimary: true,
 		target: rows[0].cells[1], preventDefault() {}
 	})
 	return {
-		calls, element, makeRow, pointer, reorder, rows,
+		calls, element, listeners, makeRow, pointer, reorder, rows,
 		restore: () => globals.forEach((name, index) => {
 			if (previous[index] === undefined) delete globalThis[name]
 			else globalThis[name] = previous[index]
@@ -139,7 +146,7 @@ test('columns keep moving outside either edge during removal and auto-scroll', (
 			}
 			const header = f.rows[0].cells[x < 0 ? 4 : 1]
 			const pointer = (type, clientX) => f.reorder.onPointer({
-				type, clientX, clientY: 120, pointerId: 1, button: 0, target: header, preventDefault() {}
+				type, clientX, clientY: 120, pointerId: 1, button: 0, isPrimary: true, target: header, preventDefault() {}
 			})
 			const initialOrder = f.rows[0].cells.map(cell => cell.name)
 			pointer('pointerdown', 150)
@@ -283,4 +290,84 @@ test('moving changes the indicator, returning to the original position clears it
 		assert.deepEqual(f.calls, [])
 	}
 	finally { f.restore() }
+})
+
+for (const pointerType of ['mouse', 'pen', 'touch']) {
+	test(`${pointerType}: tap keeps sorting, dragging suppresses its click, next tap sorts`, async () => {
+		const f = fixture()
+		try {
+			f.reorder.init()
+			const pointer = (type, x, y = 120, extra = {}) => f.reorder.onPointer({
+				type, clientX: x, clientY: y, pointerId: 1, pointerType, button: 0, isPrimary: true,
+				target: f.rows[0].cells[1], preventDefault() {}, ...extra
+			})
+			let suppressed = 0
+			const click = () => f.listeners.find(listener => listener.type === 'click').listener({
+				preventDefault() { suppressed ++ }, stopImmediatePropagation() {}
+			})
+			pointer('pointerdown', 150)
+			pointer('pointerup', 150)
+			click()
+			assert.equal(suppressed, 0)
+			pointer('pointerdown', 150)
+			pointer('pointermove', 250)
+			pointer('pointerup', 250)
+			assert.deepEqual(f.calls, [['reorder', 'name']])
+			await new Promise(resolve => setTimeout(resolve, 20))
+			click()
+			assert.equal(suppressed, 1)
+			pointer('pointerdown', 150)
+			pointer('pointerup', 150)
+			click()
+			assert.equal(suppressed, 1)
+			pointer('pointerdown', 150)
+			pointer('pointermove', 150, 90)
+			pointer('pointerup', 150, 90)
+			assert.deepEqual(f.calls.at(-1), ['remove', 'email'])
+		}
+		finally { f.reorder.finish(false); f.restore() }
+	})
+}
+
+test('only the primary pointer can arm a drag and other fingers cannot move or finish it', () => {
+	const f = fixture()
+	try {
+		const pointer = (type, x, extra = {}) => f.reorder.onPointer({
+			type, clientX: x, clientY: 120, pointerId: 1, button: 0, isPrimary: true,
+			target: f.rows[0].cells[1], preventDefault() {}, ...extra
+		})
+		pointer('pointerdown', 150, { isPrimary: false, pointerId: 2 })
+		assert.equal(f.reorder.press, undefined)
+		pointer('pointerdown', 150)
+		pointer('pointermove', 250, { isPrimary: false, pointerId: 2 })
+		assert.equal(f.reorder.drag, undefined)
+		pointer('pointermove', 250)
+		pointer('pointerup', 50, { isPrimary: false, pointerId: 2 })
+		assert.ok(f.reorder.drag)
+		pointer('pointerup', 250)
+		assert.deepEqual(f.calls, [['reorder', 'name']])
+	}
+	finally { f.reorder.finish(false); f.restore() }
+})
+
+test('unexpected capture loss restores order and clears the drag without saving', () => {
+	const f = fixture()
+	try {
+		f.reorder.init()
+		f.pointer('pointerdown', 150)
+		f.pointer('pointermove', 250)
+		f.reorder.animate(0)
+		const lostCapture = f.listeners.find(listener => listener.type === 'lostpointercapture').listener
+		// Touch implicitly captures the header before the plugin captures the table.
+		lostCapture({ pointerId: 1, target: f.rows[0].cells[2], type: 'lostpointercapture' })
+		assert.ok(f.reorder.drag)
+		lostCapture({
+			pointerId: 1, target: f.element, type: 'lostpointercapture'
+		})
+		for (const row of f.rows) assert.deepEqual(row.cells.map(cell => cell.name), ['select', 'name', 'email'])
+		assert.equal(f.reorder.drag, undefined)
+		assert.equal(f.reorder.frame, undefined)
+		assert.deepEqual(f.calls, [])
+	}
+	finally { f.reorder.finish(false); f.restore() }
 })

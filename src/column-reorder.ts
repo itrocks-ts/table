@@ -96,9 +96,20 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 
 	init()
 	{
-		const table = this.of
+		const table   = this.of
+
+		const section = table.element.tHead?.rows.length ? 'thead' : 'tbody:first-of-type'
+		// Reserve both axes before pointerdown, including vertical drags used to remove a column.
+		table.styleSheet.push(`
+			${table.selector} > ${section} > tr:first-child > :is(th, td) {
+				touch-action: none;
+				-webkit-user-select: none;
+				user-select: none;
+			}
+		`)
+
 		table.addEventListener(table.element, 'click', event => {
-			if (!this.suppressClick) return
+			if (!this.suppressClick || (event.detail === 0)) return
 			this.suppressClick = false
 			event.preventDefault()
 			event.stopImmediatePropagation()
@@ -108,10 +119,14 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 			event.preventDefault()
 			this.finish(false)
 		}, { capture: true })
+		table.addEventListener(table.element, 'lostpointercapture', event => {
+			if (event.target === table.element) this.onPointer(event)
+		})
 		table.addEventListener(document,      'pointercancel', event => this.onPointer(event), { capture: true })
 		table.addEventListener(table.element, 'pointerdown',   event => this.onPointer(event))
 		table.addEventListener(document,      'pointermove',   event => this.onPointer(event), { capture: true })
 		table.addEventListener(document,      'pointerup',     event => this.onPointer(event), { capture: true })
+
 		table.onReset.push(() => {
 			this.finish(false)
 			this.suppressClick = false
@@ -137,7 +152,8 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 	protected onPointer(event: PointerEvent)
 	{
 		if (event.type === 'pointerdown') {
-			if (activeDrag || this.press || (event.button !== 0)) return
+			if (activeDrag || this.press || !event.isPrimary || (event.button !== 0)) return
+			this.suppressClick = false
 			const header = (event.target as Element).closest<HTMLTableCellElement>('th, td')
 			if (!header || (header.parentElement !== this.triggerRow())) return
 			this.press = { header, id: event.pointerId, origin: event.clientX, y: event.clientY }
@@ -146,7 +162,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 
 		const state = this.drag ?? this.press
 		if (!state || (event.pointerId !== state.id)) return
-		if (event.type === 'pointercancel') {
+		if ((event.type === 'pointercancel') || (event.type === 'lostpointercapture')) {
 			this.finish(false)
 			return
 		}
@@ -162,8 +178,6 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 				this.frame = undefined
 				this.animate(performance.now())
 			}
-			this.suppressClick = true
-			setTimeout(() => this.suppressClick = false)
 			this.finish(true)
 			return
 		}
@@ -256,6 +270,8 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		}
 		this.drag  = drag
 		activeDrag = this
+		// Keep suppression until the compatibility click arrives, even if touch delays it.
+		this.suppressClick = true
 		document.documentElement.classList.add('column-reorder')
 		for (const cell of drag.cells) cell.classList.add('column-reorder')
 		this.updateState(drag)
