@@ -275,8 +275,7 @@ match the current view.
   for optional values and resolves after error notification as well. `moveTo(index)` reuses public reorder placement
   and its existing boundaries. `commit()` validates it and returns `added` or `existing`; repeating commit returns
   `existing`. `cancel()` aborts values, removes new provisional cells or restores an existing column's position.
-  Completed/cancelled handles cannot move a column. Pointer transport and drop acceptance belong to the later external
-  reorder contract; `begin()` itself installs no pointer transport.
+  Completed/cancelled handles cannot move a column. `begin()` itself installs no pointer transport.
 - `dispose(): void` cancels provisional operations, aborts outstanding values and removes flash resources. Committed
   columns remain. `Table.reset()` invokes disposal automatically; call disposal when removing the owning view.
 
@@ -298,3 +297,25 @@ offsets after structural changes. `Table.refreshStyleSheets()` reapplies the man
 `colgroup`. `reveal()` fully exposes columns that fit that area and uses its maximum width for wider columns, with
 minimal scrolling in either direction. Freeze refresh measures natural cell positions before recalculating offsets,
 including header-backed tables after addition, asynchronous replacement or reset.
+
+### External pointer transport
+
+`beginExternal(source, sample): ColumnOperation` immediately creates a provisional real column, or reuses an existing
+id. The structural `PointerSample` contains `pointerId`, `pointerType`, `clientX` and `clientY`. The source owns
+capture.
+`move(sample)` uses the existing reorder engine, including frozen boundaries and visible-edge autoscroll.
+`finish(sample)` resolves to `added`, `moved` or `cancelled`; an outside drop cancels without a fallback insertion.
+`cancel()` restores an existing column's original position or removes a new preview. Neither operation invokes the
+header-origin removal callback. Disposal and reset invalidate the handle and discard late loaded content.
+
+Optional `ColumnSource.accept(signal)` validates host admission independently of values. It starts once alongside
+`load`; a valid drop waits for admission, with geometry held and other column gestures excluded, then commits without
+waiting for `load`. Rejection rolls back and rejects `finish`. An omitted callback accepts immediately. Value errors
+remain retryable and do not reject a valid drop. The host must keep admission independent of its data request.
+
+`TableColumnReorder.beginExternal(header, sample): ExternalColumnOperation` is the lower-level public extension for
+an already attached column. Its `move`, `hold`, `finish` and `cancel` methods share header-origin geometry and
+placement.
+`hold(sample)` settles and pauses autoscroll while retaining exclusivity; it returns whether the target is valid.
+`finish(sample)` releases the gesture and returns acceptance. It never calls header reorder/removal notifications;
+the owning addition transaction emits its distinct commit notification. Header-origin gestures retain their callbacks.

@@ -2,10 +2,20 @@ import { Plugin }        from '../../plugin/plugin.js'
 import { PluginOptions } from '../../plugin/plugin.js'
 import { Table }         from './table.js'
 
+export type PointerSample = { pointerId: number; pointerType: string; clientX: number; clientY: number }
+export interface ExternalColumnOperation
+{
+	cancel(): void
+	finish(sample: PointerSample): boolean
+	hold(sample: PointerSample): boolean
+	move(sample: PointerSample): void
+}
+
 type Direction = -1 | 0 | 1
 
 interface Drag extends Press
 {
+	external:  boolean
 	cells:     HTMLTableCellElement[]
 	col?:      HTMLTableColElement
 	direction: Direction
@@ -14,6 +24,7 @@ interface Drag extends Press
 	maximum:   number
 	minimum:   number
 	remove:    boolean
+	rows:      HTMLTableRowElement[]
 	scroll?:   HTMLElement
 	time?:     number
 	x:         number
@@ -47,13 +58,53 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		this.frame = undefined
 		const drag = this.drag!
 		this.updateState(drag)
-		const pointerDirection = drag.direction
+		if (drag.external && drag.remove) return
+		const rect = drag.header.getBoundingClientRect()
+		const pointerDirection = drag.external
+			? (drag.x < rect.left ? -1 : drag.x > rect.right ? 1 : 0) : drag.direction
 		drag.direction         = 0
 		const scrollDirection  = this.scroll(drag, time)
 		if (scrollDirection) this.requestFrame()
 		const direction = pointerDirection || scrollDirection
 		const target    = direction ? this.target(drag, direction) : drag.index
 		if (target !== drag.index) this.move(drag, target)
+	}
+
+	/** The source owns pointer capture; this operation owns target geometry and rollback. */
+	beginExternal(header: HTMLTableCellElement, sample: PointerSample): ExternalColumnOperation
+	{
+		if (activeDrag || this.press) throw new Error('A column interaction is active')
+		this.start({ header, id: sample.pointerId, origin: header.getBoundingClientRect().left, y: sample.clientY },
+			sample.clientX, sample.clientY, true)
+		const drag = this.drag
+		if (!drag) throw new Error('Column cannot be reordered')
+		let held = false
+		const live = () => this.drag === drag
+		const move = (point: PointerSample) => {
+			if (!live() || held || point.pointerId !== drag.id) return
+			this.updatePointer(point.clientX, point.clientY)
+		}
+		const hold = (point: PointerSample) => {
+			if (!live() || point.pointerId !== drag.id) return false
+			move(point)
+			if (this.frame !== undefined) cancelAnimationFrame(this.frame)
+			this.frame = undefined
+			this.animate(performance.now())
+			if (this.frame !== undefined) cancelAnimationFrame(this.frame)
+			this.frame = undefined
+			held = true
+			return !drag.remove && this.of.element.isConnected
+		}
+		return {
+			cancel: () => { if (live()) this.finish(false) },
+			finish: point => {
+				const accepted = hold(point)
+				if (live()) this.finish(accepted)
+				return accepted
+			},
+			hold,
+			move
+		}
 	}
 
 	defaultOptions()
@@ -101,7 +152,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		if (!drag) return
 		const changed = drag.index !== drag.initial
 		if (!commit && changed) this.move(drag, drag.initial)
-		const removed = commit && drag.remove
+		const removed = commit && drag.remove && !drag.external
 		if (removed) {
 			for (const row of this.rows()) {
 				row.cells[drag.index]?.remove()
@@ -114,11 +165,11 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		document.documentElement.classList.remove('column-reorder')
 		activeDrag = undefined
 		this.drag  = undefined
-		if (this.of.element.hasPointerCapture(drag.id)) this.of.element.releasePointerCapture(drag.id)
+		if (!drag.external && this.of.element.hasPointerCapture(drag.id)) this.of.element.releasePointerCapture(drag.id)
 		if (removed) {
 			this.options.onRemove?.(drag.header)
 		}
-		else if (commit && changed) {
+		else if (commit && changed && !drag.external) {
 			this.options.onReorder?.(drag.header)
 		}
 	}
@@ -144,7 +195,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 			event.stopImmediatePropagation()
 		}, { capture: true })
 		table.addEventListener(document, 'keydown', event => {
-			if ((event.key !== 'Escape') || !this.drag) return
+			if ((event.key !== 'Escape') || !this.drag || this.drag.external) return
 			event.preventDefault()
 			this.finish(false)
 		}, { capture: true })
@@ -164,16 +215,16 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 
 	protected move(drag: Drag, targetIndex: number)
 	{
-		this.moveCells(drag.index, targetIndex)
+		this.moveCells(drag.index, targetIndex, drag.external ? drag.rows : undefined)
 		drag.index = targetIndex
 		this.updateState(drag)
 	}
 
-	protected moveCells(index: number, targetIndex: number)
+	protected moveCells(index: number, targetIndex: number, rows = this.rows())
 	{
 		if (index === targetIndex) return
 		const after = index < targetIndex
-		for (const row of this.rows()) {
+		for (const row of rows) {
 			const cell   = row.cells[index]
 			const target = row.cells[targetIndex]
 			after ? target.after(cell) : target.before(cell)
@@ -196,6 +247,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 			return
 		}
 
+		if (this.drag?.external) return
 		const state = this.drag ?? this.press
 		if (!state || (event.pointerId !== state.id)) return
 		if ((event.type === 'pointercancel') || (event.type === 'lostpointercapture')) {
@@ -242,7 +294,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 	{
 		const container = drag.scroll
 		if (!container) return 0
-		const rect      = container.getBoundingClientRect()
+		const rect      = drag.external ? this.bounds(drag) : container.getBoundingClientRect()
 		const left      = clamp((rect.left + scrollZone - drag.x) / scrollZone)
 		const right     = clamp((drag.x - rect.right + scrollZone) / scrollZone)
 		const speed     = right - left
@@ -275,24 +327,25 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		return undefined
 	}
 
-	protected start(press: Press, x: number, y: number)
+	protected start(press: Press, x: number, y: number, external = false)
 	{
 		if (activeDrag) return
 		const headers     = Array.from(this.triggerRow().cells)
 		const initial     = headers.indexOf(press.header)
 		const rows        = this.rows()
 		const columns     = this.of.element.querySelectorAll<HTMLTableColElement>(':scope > colgroup > col')
-		const reorderable = headers.map(header => !header.classList.contains('column-add-provisional')
+		const reorderable = headers.map(header => (external || !header.classList.contains('column-add-provisional'))
 			&& (this.options.isReorderable?.(header) ?? true))
 		if (!reorderable[initial]) return
 		let maximum = initial
 		let minimum = initial
 		while ((maximum < headers.length - 1) && reorderable[maximum + 1]) maximum ++
 		while ((minimum > 0) && reorderable[minimum - 1]) minimum --
-		this.of.element.setPointerCapture(press.id)
+		if (!external) this.of.element.setPointerCapture(press.id)
 
 		const drag: Drag = {
 			...press,
+			external,
 			cells:     rows.map(row => row.cells[initial]),
 			col:       columns[initial],
 			direction: Math.sign(x - press.origin) as Direction,
@@ -301,6 +354,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 			maximum,
 			minimum,
 			remove: false,
+			rows,
 			scroll: this.scrollContainer(),
 			x,
 			y
@@ -308,7 +362,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		this.drag  = drag
 		activeDrag = this
 		// Keep suppression until the compatibility click arrives, even if touch delays it.
-		this.suppressClick = true
+		this.suppressClick = !external
 		document.documentElement.classList.add('column-reorder')
 		for (const cell of drag.cells) cell.classList.add('column-reorder')
 		this.updateState(drag)
@@ -337,20 +391,33 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		return this.of.element.tHead?.rows[0] ?? this.of.element.tBodies[0]?.rows[0]
 	}
 
+	protected bounds(drag: Drag)
+	{
+		const rect = this.of.element.getBoundingClientRect()
+		const headers = this.triggerRow().cells
+		const first = headers[drag.minimum].getBoundingClientRect()
+		const last = headers[drag.maximum].getBoundingClientRect()
+		const viewport = drag.external ? drag.scroll?.getBoundingClientRect() : undefined
+		return {
+			left: Math.max(rect.left, first.left, headers[drag.minimum - 1]?.getBoundingClientRect().right ?? rect.left,
+				viewport?.left ?? rect.left),
+			right: Math.min(rect.right, last.right, headers[drag.maximum + 1]?.getBoundingClientRect().left ?? rect.right,
+				viewport?.right ?? rect.right),
+			top: Math.max(rect.top, viewport?.top ?? rect.top),
+			bottom: Math.min(rect.bottom, viewport?.bottom ?? rect.bottom)
+		}
+	}
+
 	protected updateState(drag: Drag)
 	{
-		if (this.options.onRemove) {
-			const rect    = this.of.element.getBoundingClientRect()
-			const headers = this.triggerRow().cells
-			const first   = headers[drag.minimum].getBoundingClientRect()
-			const last    = headers[drag.maximum].getBoundingClientRect()
-			const left    = Math.max(rect.left, first.left, headers[drag.minimum - 1]?.getBoundingClientRect().right ?? rect.left)
-			const right   = Math.min(rect.right, last.right, headers[drag.maximum + 1]?.getBoundingClientRect().left ?? rect.right)
-			drag.remove = (drag.x < left) || (drag.x > right) || (drag.y < rect.top) || (drag.y > rect.bottom)
+		if (this.options.onRemove || drag.external) {
+			const rect = this.bounds(drag)
+			drag.remove = (drag.x < rect.left) || (drag.x > rect.right) || (drag.y < rect.top) || (drag.y > rect.bottom)
 		}
 		for (const cell of drag.cells) {
-			cell.classList.toggle('removing', drag.remove)
-			cell.classList.toggle('moving', !drag.remove && (drag.index !== drag.initial))
+			cell.classList.toggle('removing', drag.remove && !drag.external)
+			cell.classList.toggle('moving', !drag.remove && (drag.index !== drag.initial)
+				&& !drag.header.classList.contains('column-add-provisional'))
 		}
 	}
 

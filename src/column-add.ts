@@ -1,5 +1,6 @@
 import { Plugin }             from '../../plugin/plugin.js'
 import { PluginOptions }      from '../../plugin/plugin.js'
+import type { PointerSample } from './column-reorder.js'
 import { TableColumnReorder } from './column-reorder.js'
 import { TableFreeze }        from './freeze.js'
 import { Table }              from './table.js'
@@ -14,8 +15,15 @@ export type ColumnContent = {
 	cells: readonly HTMLTableCellElement[]
 	header: HTMLTableCellElement
 }
+export interface ColumnOperation
+{
+	cancel(): void
+	finish(sample: PointerSample): Promise<'added' | 'moved' | 'cancelled'>
+	move(sample: PointerSample): void
+}
 export type ColumnResult = 'added' | 'existing'
 export type ColumnSource = {
+	accept?(signal: AbortSignal): Promise<void>
 	create(): ColumnContent
 	id: string
 	load?(signal: AbortSignal): Promise<ColumnContent>
@@ -47,6 +55,7 @@ interface Pending
 export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 {
 	protected disposed = false
+	protected external?: ColumnOperation
 	protected highlights = new Map<HTMLTableCellElement, ReturnType<typeof setTimeout>>()
 	protected identities = new WeakMap<HTMLTableCellElement, string>()
 	protected pending = new Map<string, Pending>()
@@ -72,7 +81,7 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 		}
 	}
 
-	/** Create a transaction now; pointer transport is supplied by a later public reorder extension. */
+	/** Create a provisional column without installing pointer transport. */
 	begin(source: ColumnSource): ColumnTransaction
 	{
 		if (this.disposed) throw new Error('Column addition is disposed')
@@ -151,6 +160,68 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 		return transaction
 	}
 
+	/** Add or move an opaque column through the existing reorder geometry. */
+	beginExternal(source: ColumnSource, sample: PointerSample): ColumnOperation
+	{
+		if (this.disposed || this.external) throw new Error('Column addition is unavailable')
+		if (this.pending.get(source.id)?.transaction.state === 'provisional')
+			throw new Error('Column addition is pending')
+		const existing = this.find(source.id)
+		const initial = existing?.cellIndex
+		const transaction = existing ? undefined : this.begin(source)
+		let reorder: ReturnType<TableColumnReorder['beginExternal']>
+		try { reorder = this.reorder.beginExternal(existing ?? transaction!.header, sample) }
+		catch (error) {
+			transaction?.cancel()
+			throw error
+		}
+		let complete = false
+		let finishing = false
+		const abort = new AbortController()
+		const acceptance = Promise.resolve().then(() => source.accept?.(abort.signal))
+		// Keep a rejected admission observable at finish without an unhandled rejection during transport.
+		void acceptance.catch(() => {})
+		const operation: ColumnOperation = {
+			cancel: () => {
+				if (complete) return
+				complete = true
+				abort.abort()
+				reorder.cancel()
+				if (initial !== undefined) this.reorder.moveColumn(this.find(source.id)!, initial)
+				transaction?.cancel()
+				this.external = undefined
+				this.refresh()
+			},
+			finish: async point => {
+				if (complete || finishing) return 'cancelled'
+				finishing = true
+				if (!reorder.hold(point)) {
+					operation.cancel()
+					return 'cancelled'
+				}
+				try { await acceptance }
+				catch (error) {
+					operation.cancel()
+					throw error
+				}
+				if (complete) return 'cancelled'
+				if (!reorder.finish(point)) {
+					operation.cancel()
+					return 'cancelled'
+				}
+				complete = true
+				this.external = undefined
+				if (transaction) transaction.commit()
+				else this.options.onChange?.({ header: this.find(source.id)!, id: source.id, state: 'committed' })
+				this.refresh()
+				return existing ? 'moved' : 'added'
+			},
+			move: point => { if (!complete) reorder.move(point) }
+		}
+		this.external = operation
+		return operation
+	}
+
 	defaultOptions()
 	{
 		return new TableColumnAddOptions()
@@ -158,6 +229,7 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 
 	dispose()
 	{
+		this.external?.cancel()
 		this.disposed = true
 		for (const entry of [...this.pending.values()]) {
 			entry.transaction.cancel()

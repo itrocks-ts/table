@@ -8,7 +8,8 @@ table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td) {
 	}
 
 	&.column-add-provisional {
-		outline: 1px dashed color-mix(in srgb, CanvasText 50%, Canvas);
+		background-color: color-mix(in srgb, #58b46b 18%, Canvas);
+		outline: 1px dashed #58b46b;
 		outline-offset: -2px;
 	}
 
@@ -33,4 +34,9 @@ table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td) {
 		outline: 2px solid color-mix(in srgb, #58b46b 65%, Canvas);
 		outline-offset: -2px;
 	}
+}
+
+table.itrocks > thead > tr > .column-add-provisional::before {
+	content: "+ ";
+	color: #28783b;
 }

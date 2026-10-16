@@ -160,3 +160,119 @@ test('a changed row view rejects stale loaded data and retains a visible recover
 	assert.equal(f.events.at(-1).state, 'error')
 	f.reset()
 })
+
+function externalFixture()
+{
+	const f = fixture()
+	const names = ['document', 'requestAnimationFrame', 'cancelAnimationFrame']
+	const globals = names.map(name => globalThis[name])
+	globalThis.document = { documentElement: { classList: { add() {}, remove() {} } } }
+	globalThis.requestAnimationFrame = () => 1
+	globalThis.cancelAnimationFrame = () => {}
+	const table = f.addition.of
+	table.element.isConnected = true
+	table.element.getBoundingClientRect = () => ({ left: 0, right: 400, top: 100, bottom: 400 })
+	const decorate = cell => {
+		cell.getBoundingClientRect = () => ({ left: cell.cellIndex * 100, right: (cell.cellIndex + 1) * 100 })
+		return cell
+	}
+	for (const row of f.rows) for (const cell of row.cells) decorate(cell)
+	const content = label => {
+		const result = f.content(label)
+		for (const cell of [result.header, ...result.cells]) decorate(cell)
+		return result
+	}
+	return { ...f, content, restore: () => {
+		f.addition.dispose()
+		names.forEach((name, index) => {
+			if (globals[index] === undefined) delete globalThis[name]
+			else globalThis[name] = globals[index]
+		})
+	} }
+}
+const point = (clientX, clientY = 150) => ({ clientX, clientY, pointerId: 42, pointerType: 'mouse' })
+
+test('external drop commits before values and loads only once across movement', async () => {
+	const f = externalFixture()
+	try {
+		const values = deferred()
+		let loads = 0
+		const drag = f.addition.beginExternal({ id: 'new', create: () => f.content('pending'),
+			load: () => {
+				loads ++
+				return values.promise
+			} }, point(250))
+		for (const x of [180, 120, 210, 150]) drag.move(point(x))
+		assert.equal(await drag.finish(point(50)), 'added')
+		assert.equal(loads, 1)
+		assert.deepEqual(f.rows[0].cells.map(cell => cell.name), ['pending', 'a', 'b'])
+		assert.equal(f.events.filter(event => event.state === 'committed').length, 1)
+		values.resolve(f.content('loaded'))
+		await new Promise(resolve => setImmediate(resolve))
+		assert.deepEqual(f.rows[0].cells.map(cell => cell.name), ['loaded', 'a', 'b'])
+	}
+	finally { f.restore() }
+})
+
+test('external existing movement cancels outside and never calls header deletion', async () => {
+	const f = externalFixture()
+	try {
+		const reorder = f.addition.of.plugins.TableColumnReorder
+		reorder.options.onRemove = () => assert.fail('External drag removed a column')
+		const source = { id: 'a', create: () => assert.fail('Existing column recreated') }
+		const moved = f.addition.beginExternal(source, point(600))
+		moved.move(point(180))
+		assert.equal(await moved.finish(point(180)), 'moved')
+		assert.deepEqual(f.rows[0].cells.map(cell => cell.name), ['b', 'a'])
+		for (const destination of [point(50, 50), point(50, 500), point(-20), point(600)]) {
+			const drag = f.addition.beginExternal(source, point(150))
+			drag.move(point(50))
+			assert.equal(await drag.finish(destination), 'cancelled')
+			assert.deepEqual(f.rows[0].cells.map(cell => cell.name), ['b', 'a'])
+		}
+	}
+	finally { f.restore() }
+})
+
+test('external admission failure and disposal discard provisional and late values', async () => {
+	for (const action of ['cancel', 'dispose', 'reject']) {
+		const f = externalFixture()
+		try {
+			const values = deferred()
+			const admission = deferred()
+			const drag = f.addition.beginExternal({ id: 'new', create: () => f.content('pending'),
+				load: () => values.promise, accept: () => admission.promise }, point(250))
+			const finished = action === 'reject' ? drag.finish(point(150)) : undefined
+			if (action === 'cancel') drag.cancel()
+			if (action === 'dispose') f.addition.dispose()
+			if (action === 'reject') {
+				admission.reject(new Error('Not supported'))
+				await assert.rejects(finished, /Not supported/)
+			}
+			else admission.resolve()
+			values.resolve(f.content('late'))
+			await new Promise(resolve => setImmediate(resolve))
+			assert.deepEqual(f.rows[0].cells.map(cell => cell.name), ['a', 'b'])
+			assert.equal(f.events.filter(event => event.state === 'committed').length, 0)
+			assert.equal(f.events.filter(event => event.state === 'cancelled').length, 1)
+		}
+		finally { f.restore() }
+	}
+})
+
+test('external data failure is retryable after a valid drop and does not control acceptance', async () => {
+	const f = externalFixture()
+	try {
+		let attempt = 0
+		const drag = f.addition.beginExternal({ id: 'new', create: () => f.content('pending'), load: async () => {
+			if (!attempt ++) throw new Error('Values failed')
+			return f.content('retried')
+		} }, point(250))
+		await new Promise(resolve => setImmediate(resolve))
+		assert.equal(await drag.finish(point(150)), 'added')
+		await f.addition.retry('new')
+		assert.equal(f.rows[0].cells.some(cell => cell.name === 'retried'), true)
+		assert.equal(f.events.filter(event => event.state === 'committed').length, 1)
+	}
+	finally { f.restore() }
+})
