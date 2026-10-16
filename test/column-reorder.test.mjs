@@ -119,6 +119,53 @@ test('auto-scroll reaches either limit with a stationary pointer at or beyond th
 	}
 })
 
+test('an external column keeps auto-scrolling beyond the visible edge', () => {
+	const f = fixture()
+	try {
+		let scrollLeft = 100
+		const container = {
+			clientWidth: 300,
+			scrollWidth: 500,
+			get scrollLeft() { return scrollLeft },
+			set scrollLeft(value) { scrollLeft = Math.max(0, Math.min(200, value)) },
+			getBoundingClientRect: () => ({ left: 0, right: 300 })
+		}
+		f.element.parentElement = container
+		globalThis.getComputedStyle = element => ({ overflowX: element === container ? 'auto' : 'visible' })
+		const operation = f.reorder.beginExternal(f.rows[0].cells[1], {
+			clientX: 325, clientY: 120, pointerId: 1, pointerType: 'mouse'
+		})
+		assert.equal(f.reorder.drag.remove, true)
+		f.reorder.animate(0)
+		f.reorder.animate(250)
+		assert.equal(scrollLeft, 200)
+		operation.cancel()
+	}
+	finally { f.reorder.finish(false); f.restore() }
+})
+
+test('an external column stays in its new position while the pointer is stationary', () => {
+	const f = fixture()
+	try {
+		for (const row of f.rows) for (const cell of row.cells) {
+			cell.getBoundingClientRect = () => {
+				const left = row.cells.slice(0, row.cells.indexOf(cell))
+					.reduce((width, previous) => width + (previous.name === 'name' ? 200 : 100), 0)
+				return { left, right: left + (cell.name === 'name' ? 200 : 100), top: 100, bottom: 140 }
+			}
+		}
+		const operation = f.reorder.beginExternal(f.rows[0].cells[2], {
+			clientX: 250, clientY: 120, pointerId: 1, pointerType: 'mouse'
+		})
+		f.reorder.animate(0)
+		assert.equal(f.reorder.drag.index, 1)
+		f.reorder.animate(16)
+		assert.equal(f.reorder.drag.index, 1)
+		operation.cancel()
+	}
+	finally { f.reorder.finish(false); f.restore() }
+})
+
 test('columns keep moving outside either edge during removal and auto-scroll', () => {
 	for (const x of [-25, 325]) {
 		const f = fixture({

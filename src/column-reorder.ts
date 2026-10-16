@@ -58,10 +58,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		this.frame = undefined
 		const drag = this.drag!
 		this.updateState(drag)
-		if (drag.external && drag.remove) return
-		const rect = drag.header.getBoundingClientRect()
-		const pointerDirection = drag.external
-			? (drag.x < rect.left ? -1 : drag.x > rect.right ? 1 : 0) : drag.direction
+		const pointerDirection = drag.direction
 		drag.direction         = 0
 		const scrollDirection  = this.scroll(drag, time)
 		if (scrollDirection) this.requestFrame()
@@ -294,7 +291,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 	{
 		const container = drag.scroll
 		if (!container) return 0
-		const rect      = drag.external ? this.bounds(drag) : container.getBoundingClientRect()
+		const rect      = container.getBoundingClientRect()
 		const left      = clamp((rect.left + scrollZone - drag.x) / scrollZone)
 		const right     = clamp((drag.x - rect.right + scrollZone) / scrollZone)
 		const speed     = right - left
@@ -334,6 +331,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		const initial     = headers.indexOf(press.header)
 		const rows        = this.rows()
 		const columns     = this.of.element.querySelectorAll<HTMLTableColElement>(':scope > colgroup > col')
+		const source      = press.header.getBoundingClientRect()
 		const reorderable = headers.map(header => (external || !header.classList.contains('column-add-provisional'))
 			&& (this.options.isReorderable?.(header) ?? true))
 		if (!reorderable[initial]) return
@@ -348,7 +346,8 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 			external,
 			cells:     rows.map(row => row.cells[initial]),
 			col:       columns[initial],
-			direction: Math.sign(x - press.origin) as Direction,
+			direction: external ? (x < source.left ? -1 : x > source.right ? 1 : 0)
+				: Math.sign(x - press.origin) as Direction,
 			index:     initial,
 			initial,
 			maximum,
@@ -425,7 +424,9 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 	{
 		const drag = this.drag!
 		if ((x === drag.x) && (y === drag.y)) return
-		drag.direction = Math.sign(x - drag.x) as Direction
+		const source = drag.external ? drag.header.getBoundingClientRect() : undefined
+		drag.direction = source ? (x === drag.x ? 0 : x < source.left ? -1 : x > source.right ? 1 : 0)
+			: Math.sign(x - drag.x) as Direction
 		drag.x         = x
 		drag.y         = y
 		this.updateState(drag)

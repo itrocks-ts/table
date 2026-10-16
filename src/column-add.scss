@@ -8,9 +8,7 @@ table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td) {
 	}
 
 	&.column-add-provisional {
-		background-color: color-mix(in srgb, #58b46b 18%, Canvas);
-		outline: 1px dashed #58b46b;
-		outline-offset: -2px;
+		background-color: color-mix(in srgb, #58b46b 5%, Canvas);
 	}
 
 	&.column-add-error {
