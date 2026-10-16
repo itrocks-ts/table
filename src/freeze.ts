@@ -102,7 +102,8 @@ export class TableFreeze extends Plugin<Table>
 	{
 		const table = this.of
 		if (!table.element.tHead?.rows.length) return
-		let counter = 1, top = .0, previousTop = table.element.getBoundingClientRect().top
+		// Header measurements are in scrolled coordinates after refresh removes the sticky rules.
+		let counter = 1, top = .0, previousTop = table.element.getBoundingClientRect().top - table.element.scrollTop
 		table.element.tHead.querySelectorAll<HTMLTableRowElement>(':scope > tr').forEach(row => {
 			const actualTop = row.getBoundingClientRect().top
 			top += actualTop - previousTop

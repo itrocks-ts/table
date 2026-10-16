@@ -71,3 +71,21 @@ test('refresh removes applied sticky rules before measuring header-backed column
 	freeze.refresh()
 	assert.deepEqual(sequence, ['natural layout', 'measure'])
 })
+
+test('refresh keeps header rows fixed when the table is already scrolled', () => {
+	const freeze = new TableFreeze()
+	const header = { firstElementChild: {}, getBoundingClientRect: () => rect(0, 300, -20, 10) }
+	freeze.rules = ['previous sticky rules']
+	freeze.of = {
+		element: {
+			getBoundingClientRect: () => rect(0, 300, 100, 310),
+			querySelectorAll: () => [], scrollTop: 120,
+			tHead: { rows: [header], querySelectorAll: () => [header] }
+		},
+		selector: 'table.test', styleSheet: ['previous sticky rules'],
+		refreshStyleSheets() { assert.deepEqual(this.styleSheet, []) }
+	}
+	freeze.refresh()
+	assert.match(freeze.of.styleSheet.join('\n'), /top: 0px;/)
+	assert.match(freeze.of.styleSheet.join('\n'), /position: sticky;/)
+})
