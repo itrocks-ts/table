@@ -1,3 +1,8 @@
+table.itrocks > colgroup > col[hidden],
+table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td)[hidden] {
+	display: none !important;
+}
+
 table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td) {
 	&.column-add-highlight {
 		animation: itrocks-column-add-flash 850ms ease-out;

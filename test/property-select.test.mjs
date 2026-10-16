@@ -171,6 +171,9 @@ function externalFixture()
 	globalThis.cancelAnimationFrame = () => {}
 	const table = f.addition.of
 	table.element.isConnected = true
+	table.element.contains = element => element === table.element
+	table.element.ownerDocument = { elementFromPoint: (x, y) =>
+		(x >= 0 && x <= 400 && y >= 100 && y <= 400) ? table.element : null }
 	table.element.getBoundingClientRect = () => ({ left: 0, right: 400, top: 100, bottom: 400 })
 	const decorate = cell => {
 		cell.getBoundingClientRect = () => ({ left: cell.cellIndex * 100, right: (cell.cellIndex + 1) * 100 })
@@ -191,6 +194,61 @@ function externalFixture()
 	} }
 }
 const point = (clientX, clientY = 150) => ({ clientX, clientY, pointerId: 42, pointerType: 'mouse' })
+
+test('external preload stays hidden until first entry and preserves loaded cells during movement', async () => {
+	const f = externalFixture()
+	try {
+		const values = deferred()
+		let loads = 0
+		const drag = f.addition.beginExternal({ id: 'new', create: () => f.content('pending'), load: () => {
+			loads ++
+			return values.promise
+		} }, point(600))
+		assert.equal(loads, 1)
+		assert.ok(f.rows.every(row => row.cells[2].hidden))
+		drag.move(point(550))
+		assert.ok(f.rows.every(row => row.cells[2].hidden))
+		values.resolve(f.content('loaded'))
+		await new Promise(resolve => setImmediate(resolve))
+		assert.deepEqual(f.rows.map(row => row.cells[2].name), ['loaded', 'loaded1', 'loaded2'])
+		assert.ok(f.rows.every(row => row.cells[2].hidden))
+		drag.move({ ...point(250), pointerId: 99 })
+		assert.ok(f.rows.every(row => row.cells[2].hidden))
+		drag.move(point(250))
+		assert.ok(f.rows.every(row => row.cells[2].hidden === false))
+		drag.move(point(600))
+		assert.ok(f.rows.every(row => row.cells[2].hidden === false))
+		assert.equal(await drag.finish(point(250)), 'added')
+		assert.equal(loads, 1)
+	}
+	finally { f.restore() }
+})
+
+test('outside drops remove new previews before or after entry and ignore late values', async () => {
+	for (const entered of [false, true]) for (const loaded of [false, true]) {
+		const f = externalFixture()
+		try {
+			const values = deferred()
+			let signal
+			const drag = f.addition.beginExternal({ id: 'new', create: () => f.content('pending'),
+				load: abort => { signal = abort; return values.promise } }, point(600))
+			if (entered) drag.move(point(250))
+			if (loaded) {
+				values.resolve(f.content('loaded'))
+				await new Promise(resolve => setImmediate(resolve))
+			}
+			assert.equal(await drag.finish(point(600)), 'cancelled')
+			assert.equal(signal.aborted, true)
+			assert.deepEqual(f.rows.map(row => row.cells.length), [2, 2, 2])
+			if (!loaded) values.resolve(f.content('late'))
+			await new Promise(resolve => setImmediate(resolve))
+			assert.deepEqual(f.rows.map(row => row.cells.length), [2, 2, 2])
+			assert.equal(f.events.filter(event => event.state === 'cancelled').length, 1)
+			assert.equal(f.events.filter(event => event.state === 'committed').length, 0)
+		}
+		finally { f.restore() }
+	}
+})
 
 test('external drop commits before values and loads only once across movement', async () => {
 	const f = externalFixture()

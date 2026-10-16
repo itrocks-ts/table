@@ -300,9 +300,11 @@ including header-backed tables after addition, asynchronous replacement or reset
 
 ### External pointer transport
 
-`beginExternal(source, sample): ColumnOperation` immediately creates a provisional real column, or reuses an existing
-id. The structural `PointerSample` contains `pointerId`, `pointerType`, `clientX` and `clientY`. The source owns
-capture.
+`beginExternal(source, sample): ColumnOperation` immediately creates a hidden provisional column and starts loading
+its values. The cells and optional `col` stay hidden until the pointer first enters the visible table; loaded replacements
+preserve that visibility. On entry, the column appears with any values already received and starts following reorder
+geometry. Reusing an existing id keeps its column visible throughout the gesture.
+The structural `PointerSample` contains `pointerId`, `pointerType`, `clientX` and `clientY`. The source owns capture.
 `move(sample)` uses the existing reorder engine, including frozen boundaries and visible-edge autoscroll.
 `finish(sample)` resolves to `added`, `moved` or `cancelled`; an outside drop cancels without a fallback insertion.
 `cancel()` restores an existing column's original position or removes a new preview. Neither operation invokes the
