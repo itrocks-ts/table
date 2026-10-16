@@ -89,6 +89,11 @@ export class Table extends HasPlugins<Table>
 		return tableByElement(this.element, this.options)
 	}
 
+	refreshStyleSheets()
+	{
+		applyStyleSheets()
+	}
+
 }
 
 export function tableByElement(element: HTMLTableElement, options: Partial<Options<Table>> = {})

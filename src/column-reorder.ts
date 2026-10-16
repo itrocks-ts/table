@@ -61,6 +61,35 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		return new TableColumnReorderOptions()
 	}
 
+	/** Move a column inside its existing reorderable boundaries, without committing a header gesture. */
+	moveColumn(header: HTMLTableCellElement, targetIndex: number)
+	{
+		if (!Number.isFinite(targetIndex)) throw new Error('Column index must be finite')
+		if (this.drag || this.press) throw new Error('A header interaction is active')
+		const headers = Array.from(this.triggerRow().cells)
+		const index   = headers.indexOf(header)
+		if ((index < 0) || !(this.options.isReorderable?.(header) ?? true)) return
+		let maximum = index
+		let minimum = index
+		while ((maximum < headers.length - 1) && (this.options.isReorderable?.(headers[maximum + 1]) ?? true)) maximum ++
+		while ((minimum > 0) && (this.options.isReorderable?.(headers[minimum - 1]) ?? true)) minimum --
+		this.moveCells(index, Math.max(minimum, Math.min(maximum, Math.trunc(targetIndex))))
+	}
+
+	/** Retain the active gesture when asynchronous rendering replaces one of its cells. */
+	replaceCell(previous: HTMLTableCellElement, replacement: HTMLTableCellElement)
+	{
+		if (this.press?.header === previous) this.press.header = replacement
+		if (this.drag) {
+			if (this.drag.header === previous) this.drag.header = replacement
+			this.drag.cells = this.drag.cells.map(cell => cell === previous ? replacement : cell)
+			for (const name of ['column-reorder', 'moving', 'removing']) {
+				if (previous.classList.contains(name)) replacement.classList.add(name)
+			}
+		}
+		previous.replaceWith(replacement)
+	}
+
 	protected finish(commit: boolean)
 	{
 		this.press = undefined
@@ -135,18 +164,25 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 
 	protected move(drag: Drag, targetIndex: number)
 	{
-		const after = drag.index < targetIndex
+		this.moveCells(drag.index, targetIndex)
+		drag.index = targetIndex
+		this.updateState(drag)
+	}
+
+	protected moveCells(index: number, targetIndex: number)
+	{
+		if (index === targetIndex) return
+		const after = index < targetIndex
 		for (const row of this.rows()) {
-			const cell   = row.cells[drag.index]
+			const cell   = row.cells[index]
 			const target = row.cells[targetIndex]
 			after ? target.after(cell) : target.before(cell)
 		}
-		if (drag.col) {
-			const target = drag.col.parentElement!.children[targetIndex]
-			after ? target.after(drag.col) : target.before(drag.col)
+		const columns = this.of.element.querySelectorAll<HTMLTableColElement>(':scope > colgroup > col')
+		if (columns[index]) {
+			const target = columns[targetIndex]
+			after ? target.after(columns[index]) : target.before(columns[index])
 		}
-		drag.index = targetIndex
-		this.updateState(drag)
 	}
 
 	protected onPointer(event: PointerEvent)
@@ -226,7 +262,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		return 0
 	}
 
-	protected scrollContainer()
+	scrollContainer()
 	{
 		for (let element: HTMLElement | null = this.of.element; element; element = element.parentElement) {
 			if (
@@ -246,7 +282,8 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		const initial     = headers.indexOf(press.header)
 		const rows        = this.rows()
 		const columns     = this.of.element.querySelectorAll<HTMLTableColElement>(':scope > colgroup > col')
-		const reorderable = headers.map(header => this.options.isReorderable?.(header) ?? true)
+		const reorderable = headers.map(header => !header.classList.contains('column-add-provisional')
+			&& (this.options.isReorderable?.(header) ?? true))
 		if (!reorderable[initial]) return
 		let maximum = initial
 		let minimum = initial

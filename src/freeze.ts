@@ -17,9 +17,11 @@ export class TableFreeze extends Plugin<Table>
 	leftColumnCount!:  number
 	rightColumnCount!: number
 	zIndex             = '1'
+	protected rules: string[] = []
 
 	init()
 	{
+		const offset          = this.of.styleSheet.length
 		this.columns          = this.getColumns()
 		this.leftColumnCount  = this.countLeftColumns()
 		this.rightColumnCount = this.countRightColumns()
@@ -28,6 +30,18 @@ export class TableFreeze extends Plugin<Table>
 		this.freezeHeadRows()
 		this.freezeLeftColumns()
 		this.freezeRightColumns()
+		this.rules = this.of.styleSheet.slice(offset)
+	}
+
+	/** Recalculate sticky offsets after structural changes without resetting other plugins. */
+	refresh()
+	{
+		const styles = this.of.styleSheet
+		for (const rule of this.rules) {
+			const index = styles.indexOf(rule)
+			if (index >= 0) styles.splice(index, 1)
+		}
+		this.init()
 	}
 
 	closestScrollable(element: Element)
@@ -179,7 +193,6 @@ export class TableFreeze extends Plugin<Table>
 
 	protected getColumns()
 	{
-		if (this.columns) return this.columns
 		const table = this.of
 		let columns = table.element.querySelectorAll<HTMLTableColElement>(':scope > colgroup > col')
 		if (!columns.length) {

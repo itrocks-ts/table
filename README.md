@@ -224,3 +224,73 @@ Finds all tables matching the CSS selector and returns the corresponding
   multiple rows directly in a table.
 - Implement custom plugins on top of `HasPlugins<Table>` to add domain‑
   specific features (validation, inline actions, totals rows, etc.).
+
+## Adding columns
+
+Import the public browser entry and stylesheet. Configure `TableColumnAdd` after `TableColumnReorder` and any
+freeze plugins. The addition plugin consumes opaque string ids and callback-rendered cells; it has no dependency on
+business objects, selectors, routes or storage.
+
+```ts
+import { TableColumnAdd }     from '@itrocks/table/column-add.js'
+import { TableColumnReorder } from '@itrocks/table/column-reorder.js'
+import { Table }              from '@itrocks/table/table.js'
+
+const addition = new TableColumnAdd({
+	onChange: change => console.log(change.id, change.state)
+})
+const table = new Table(document.querySelector('table')!, {
+	plugins: [TableColumnReorder, addition]
+})
+const result = await addition.add({
+	id: 'opaque-column-id',
+	create: () => ({
+		header: Object.assign(document.createElement('th'), { textContent: 'Metric' }),
+		cells: Array.from(table.element.tBodies[0].rows, () => document.createElement('td'))
+	})
+})
+```
+
+Include `<link rel="stylesheet" href="/node_modules/@itrocks/table/column-add.css">` in the consuming document,
+adapting its public URL to your asset host. See [the standalone fixture](demo/column-add.html) for asynchronous values,
+retry, reset, sorting and frozen columns. The fixture is development material and is excluded from the package tarball.
+
+`ColumnSource.create(): ColumnContent` supplies one detached header and one detached cell for every other table row,
+in DOM order, including footer rows. Addition supports rectangular tables with exactly one header row and no spans.
+Invalid creation rejects before insertion. A `colgroup`, when present, must have one `col` per column.
+`ColumnSource.load?(signal): Promise<ColumnContent>` optionally supplies replacement header/cells asynchronously.
+Callbacks own safe rendering, row identity and data access. If row elements change while loading, the plugin reports an
+error rather than applying stale positional values. Before retry, the consumer updates its callbacks' row data to
+match the current view.
+
+- `add(source): Promise<'added' | 'existing'>` appends before right-frozen columns, reveals and highlights. It resolves
+  once the real placeholder column is committed, independently of optional values. A repeated id reveals/highlights its
+  existing position, without invoking its creation/loading callbacks or issuing another commit.
+- `reveal(id): void` scrolls the horizontal container only as needed, accounting for frozen bounds.
+- `highlight(id): void` applies the same green/light/theme flash for new and existing columns, cleans up after 900 ms,
+  honours reduced motion and preserves keyboard focus and row selection.
+- `retry(id): Promise<void>` retries a failed value callback. Failure retains the committed column and marks it with
+  `.column-add-error`; the consumer presents the error and a retry control. It never confirms another addition.
+- `begin(source): ColumnTransaction` creates a real provisional column without committing it. Its `ready` promise waits
+  for optional values and resolves after error notification as well. `moveTo(index)` reuses public reorder placement
+  and its existing boundaries. `commit()` validates it and returns `added` or `existing`; repeating commit returns
+  `existing`. `cancel()` aborts values, removes new provisional cells or restores an existing column's position.
+  Completed/cancelled handles cannot move a column. Pointer transport and drop acceptance belong to the later external
+  reorder contract; `begin()` itself installs no pointer transport.
+- `dispose(): void` cancels provisional operations, aborts outstanding values and removes flash resources. Committed
+  columns remain. `Table.reset()` invokes disposal automatically; call disposal when removing the owning view.
+
+`TableColumnAddOptions.identify(header)` defaults to `header.dataset.columnId`. Added and loaded headers carry this
+opaque attribute so identity survives plugin resets. A custom callback can identify pre-existing columns differently.
+`onChange(change)` runs synchronously for `provisional`, `committed`, `loaded`, `error` and `cancelled` observations;
+`change` contains `id`, `header`, `state` and an optional `error`. Consumers persist only `committed` changes and must
+not throw from this observer. Loading uses `.column-add-loading` and `aria-busy`, independently of provisional state.
+An aborted or removed operation cannot be recreated by late values.
+
+`TableColumnReorder.moveColumn(header, index)` is public placement without header gesture callbacks. It rejects an
+active header interaction and clamps movement to that header's reorderable boundaries.
+`TableColumnReorder.replaceCell(previous, replacement)`
+preserves an active header gesture during asynchronous cell replacement. `TableFreeze.refresh()` recalculates sticky
+offsets after structural changes. `Table.refreshStyleSheets()` reapplies the managed styles.
+
+`TableColumnReorder.scrollContainer()` exposes the existing horizontal scroll owner for table plugins.

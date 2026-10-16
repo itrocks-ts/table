@@ -1,0 +1,17 @@
+:root {
+	color-scheme: light dark;
+	font: 16px system-ui, sans-serif;
+}
+body { margin: 16px; }
+section { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+button, input { font: inherit; min-height: 44px; }
+main { max-width: 100%; overflow: auto; }
+table { border-collapse: separate; border-spacing: 0; }
+th, td { background: Canvas; border: 1px solid GrayText; height: 64px; min-width: 190px; padding: 8px; }
+th[data-freeze], td:first-child, td:last-child { min-width: 64px; }
+.column-add-loading::after { content: ' …'; }
+.column-add-error::after { content: ' — Values unavailable'; }
+.column-reorder { outline: 2px solid #c90; }
+.removing { opacity: .4; }
+output { display: block; margin-top: 16px; }
+pre { max-height: 160px; overflow: auto; white-space: pre-wrap; }

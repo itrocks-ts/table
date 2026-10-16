@@ -15,6 +15,7 @@
 	},
 	"files": [
 		"LICENSE",
+		"column-add.css",
 		"README.md",
 		"**/*.d.ts",
 		"**/*.js",
@@ -50,7 +51,7 @@
 		"url": "git+https://github.com/itrocks-ts/table.git"
 	},
 	"scripts": {
-		"build": "tsc && sass --no-source-map demo:demo && node ../prepare-module/prepare-module.js"
+		"build": "tsc && sass --no-source-map demo:demo src/column-add.scss:column-add.css && node ../prepare-module/prepare-module.js"
 	},
-	"version": "0.2.10"
+	"version": "0.3.0"
 }

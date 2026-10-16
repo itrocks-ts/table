@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Generic table column fixture</title>
+	<link rel="icon" href="data:,">
+	<link rel="stylesheet" href="/itrocks/table/column-add.css">
+	<link rel="stylesheet" href="/itrocks/table/demo/column-add.css">
+	<script type="module" src="/itrocks/table/demo/column-add.js"></script>
+</head>
+<body>
+	<h1>Generic table columns</h1>
+	<p>Opaque ids, synthetic callback values and actual table plugins.</p>
+	<section aria-label="Fixture controls">
+		<label>Keep focus here <input id="focus" value="Untouched input"></label>
+		<button id="add">Add metric</button>
+		<button id="slow">Add slow metric</button>
+		<button id="fail">Add failing metric</button>
+		<button id="retry">Retry values</button>
+		<button id="invalid">Reject creation</button>
+		<button id="preview">Preview column</button>
+		<button id="cancel">Cancel preview</button>
+		<button id="reset">Reset plugins</button>
+		<button id="dispose">Dispose addition</button>
+	</section>
+	<main tabindex="0" aria-label="Scrollable table">
+		<table>
+			<colgroup><col data-freeze><col><col><col><col><col data-freeze></colgroup>
+			<thead><tr><th data-freeze>Select</th><th data-column-id="a">Alpha</th><th data-column-id="b">Beta</th>
+				<th data-column-id="c">Gamma</th><th data-column-id="d">Delta</th><th data-freeze>Actions</th></tr></thead>
+			<tbody>
+				<tr><td><input type="checkbox" checked aria-label="Select row 1"></td><td>A1</td><td>B1</td><td>C1</td>
+					<td>D1</td><td>Open</td></tr>
+				<tr><td><input type="checkbox" aria-label="Select row 2"></td><td>A2</td><td>B2</td><td>C2</td>
+					<td>D2</td><td>Open</td></tr>
+			</tbody>
+		</table>
+	</main>
+	<output id="status" aria-live="polite">Ready</output>
+	<pre id="events"></pre>
+</body>
+</html>
