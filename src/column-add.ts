@@ -291,8 +291,12 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 		const rect   = header.getBoundingClientRect()
 		const left   = Math.max(bounds.left, inner.left)
 		const right  = Math.min(bounds.right, inner.right)
-		if (rect.left < left) scroll.scrollLeft += rect.left - left
-		else if (rect.right > right) scroll.scrollLeft += Math.min(rect.right - right, rect.left - left)
+		if (right <= left) return
+		// A wide column already covering the inner area needs no scroll in either direction.
+		if ((rect.left < left) && (rect.right < right))
+			scroll.scrollLeft += Math.max(rect.left - left, rect.right - right)
+		else if ((rect.right > right) && (rect.left > left))
+			scroll.scrollLeft += Math.min(rect.right - right, rect.left - left)
 	}
 
 	retry(id: string): Promise<void>

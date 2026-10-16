@@ -41,6 +41,8 @@ export class TableFreeze extends Plugin<Table>
 			const index = styles.indexOf(rule)
 			if (index >= 0) styles.splice(index, 1)
 		}
+		// Measure natural positions, including header-backed columns that were previously sticky.
+		this.of.refreshStyleSheets()
 		this.init()
 	}
 
@@ -217,18 +219,18 @@ export class TableFreeze extends Plugin<Table>
 	{
 		const tableElement = this.of.element
 		const rect         = tableElement.getBoundingClientRect()
-		if (this.leftColumnCount) {
-			rect.x = this.columns[this.leftColumnCount - 1].getBoundingClientRect().right
-		}
-		if (tableElement.tHead?.lastElementChild?.firstElementChild) {
-			rect.y = tableElement.tHead.lastElementChild.firstElementChild.getBoundingClientRect().bottom
-		}
-		if (this.rightColumnCount) {
-			rect.width = this.columns[this.columns.length - this.rightColumnCount].getBoundingClientRect().left - rect.x + 1
-		}
-		if (tableElement.tFoot?.firstElementChild?.firstElementChild) {
-			rect.height = tableElement.tFoot.firstElementChild.firstElementChild.getBoundingClientRect().top - rect.y + 1
-		}
+		// Cols supply configuration and layout widths; only rendered cells have sticky viewport positions.
+		const cells = tableElement.tHead?.rows[0]?.cells ?? tableElement.tBodies[0]?.rows[0]?.cells
+		const left  = this.leftColumnCount && cells?.[this.leftColumnCount - 1]
+			? cells[this.leftColumnCount - 1].getBoundingClientRect().right : rect.left
+		const right = this.rightColumnCount && cells?.[cells.length - this.rightColumnCount]
+			? cells[cells.length - this.rightColumnCount].getBoundingClientRect().left : rect.right
+		const top    = tableElement.tHead?.lastElementChild?.firstElementChild?.getBoundingClientRect().bottom ?? rect.top
+		const bottom = tableElement.tFoot?.firstElementChild?.firstElementChild?.getBoundingClientRect().top ?? rect.bottom
+		rect.x      = left
+		rect.y      = top
+		rect.width  = Math.max(0, right - left)
+		rect.height = Math.max(0, bottom - top)
 		return rect
 	}
 

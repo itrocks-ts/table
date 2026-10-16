@@ -294,3 +294,7 @@ preserves an active header gesture during asynchronous cell replacement. `TableF
 offsets after structural changes. `Table.refreshStyleSheets()` reapplies the managed styles.
 
 `TableColumnReorder.scrollContainer()` exposes the existing horizontal scroll owner for table plugins.
+`TableFreeze.visibleInnerRect()` returns the area between rendered sticky cells, including tables configured through
+`colgroup`. `reveal()` fully exposes columns that fit that area and uses its maximum width for wider columns, with
+minimal scrolling in either direction. Freeze refresh measures natural cell positions before recalculating offsets,
+including header-backed tables after addition, asynchronous replacement or reset.
