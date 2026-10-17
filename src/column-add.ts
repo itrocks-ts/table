@@ -75,7 +75,6 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 			const operation = this.begin(source)
 			const result    = operation.commit()
 			this.reveal(source.id)
-			this.highlight(source.id)
 			return Promise.resolve(result)
 		}
 		catch (error) {
@@ -273,7 +272,7 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 		this.pending.clear()
 		for (const [cell, timer] of this.highlights) {
 			clearTimeout(timer)
-			cell.classList.remove('column-add-highlight', 'column-add-opening')
+			cell.classList.remove('column-add-highlight', 'column-add-new', 'column-add-opening')
 			for (const name of ['fade', 'from', 'height', 'width']) cell.style?.removeProperty(`--column-${name}`)
 		}
 		this.highlights.clear()
@@ -295,31 +294,37 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 	highlight(id: string, opening = false)
 	{
 		const header = this.find(id)
-		if (!header || this.disposed || (!opening && header.classList.contains('column-add-opening'))) return
-		const started = this.pending.get(id)?.started
+		if (!header || this.disposed) return
+		const started = opening ? this.pending.get(id)?.started : undefined
 		const duration = started === undefined ? 350 : Math.max(100, 350 - (performance.now() - started))
 		const waiting = opening && header.classList.contains('column-add-loading')
 		for (const row of Array.from(this.of.element.rows)) {
 			const cell = row.cells[header.cellIndex]
 			if (!cell) continue
 			clearTimeout(this.highlights.get(cell))
-			cell.classList.remove('column-add-highlight', 'column-add-opening')
+			cell.classList.remove('column-add-highlight', 'column-add-new', 'column-add-opening')
 		}
 		this.measureColumn(header)
+		void header.offsetWidth
 		for (const row of Array.from(this.of.element.rows)) {
 			const cell = row.cells[header.cellIndex]
 			if (!cell) continue
-			void cell.offsetWidth
+			cell.classList.toggle('column-add-new', opening)
 			cell.classList.toggle('column-add-opening', opening)
 			cell.classList.add('column-add-highlight')
 			cell.style?.setProperty('--column-fade', `${duration}ms`)
 			this.highlights.set(cell, waiting ? undefined : setTimeout(() => {
-				cell.classList.remove('column-add-highlight', 'column-add-opening')
+				cell.classList.remove('column-add-highlight', 'column-add-new', 'column-add-opening')
 				this.highlights.delete(cell)
 				for (const name of ['fade', 'from', 'height', 'width']) cell.style?.removeProperty(`--column-${name}`)
 				if (!this.highlights.size) this.refresh()
 			}, duration))
 		}
+		if (opening && header.ownerDocument) setTimeout(() => {
+			if (this.disposed || !header.isConnected) return
+			header.classList.remove('column-add-opening')
+			this.refresh()
+		}, 100)
 	}
 
 	init()
@@ -352,6 +357,7 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 				throw new Error('Column row view changed during loading')
 			}
 			const old = entry.content
+			const opening = old.header.classList.contains('column-add-opening')
 			const width = old.header.getBoundingClientRect?.().width ?? 0
 			const target = parseFloat(old.header.style?.getPropertyValue('--column-width') ?? '') || width
 			for (const cell of [old.header, ...old.cells]) {
@@ -379,6 +385,7 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 					cell.style?.setProperty('--column-width', `${target}px`)
 				}
 				this.highlight(entry.source.id, true)
+				if (!opening) content.header.classList.remove('column-add-opening')
 			}
 		}
 		catch (error) {
@@ -386,11 +393,13 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 			this.mark(entry, 'loading', false)
 			this.mark(entry, 'error', true)
 			this.notify(entry, 'error', error)
-			if (entry.transaction.state === 'committed' && !this.removals.has(entry.source.id)) {
-				for (const cell of [entry.content.header, ...entry.content.cells])
-					cell.classList.remove('column-add-opening')
-				this.highlight(entry.source.id)
+			for (const cell of [entry.content.header, ...entry.content.cells]) {
+				clearTimeout(this.highlights.get(cell))
+				this.highlights.delete(cell)
+				cell.classList.remove('column-add-highlight', 'column-add-new', 'column-add-opening')
+				for (const name of ['fade', 'from', 'height', 'width']) cell.style?.removeProperty(`--column-${name}`)
 			}
+			this.refresh()
 		}
 		finally {
 			entry.settled = true
@@ -414,11 +423,12 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 		width ??= Math.max(
 			header.getBoundingClientRect().width, parseFloat(header.style.getPropertyValue('--column-width')) || 0
 		)
-		for (const row of Array.from(this.of.element.rows)) {
-			const cell = row.cells[header.cellIndex]
+		const cells = Array.from(this.of.element.rows).map(row => row.cells[header.cellIndex])
+		const heights = cells.map(cell => cell.getBoundingClientRect().height)
+		cells.forEach((cell, index) => {
 			cell.style.setProperty('--column-width', `${width}px`)
-			cell.style.setProperty('--column-height', `${cell.getBoundingClientRect().height}px`)
-		}
+			cell.style.setProperty('--column-height', `${heights[index]}px`)
+		})
 	}
 
 	protected notify(entry: Pending, state: ColumnState, error?: unknown)
@@ -459,7 +469,7 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 		for (const cell of cells) {
 			clearTimeout(this.highlights.get(cell))
 			this.highlights.delete(cell)
-			cell.classList.remove('column-add-highlight', 'column-add-opening')
+			cell.classList.remove('column-add-highlight', 'column-add-new', 'column-add-opening')
 			cell.classList.add('column-remove-highlight')
 		}
 		try {

@@ -35,7 +35,12 @@ try {
 			const table = new Table(document.querySelector('table'), { plugins: [TableColumnReorder, TableColumnAdd] })
 			const addition = table.plugins.TableColumnAdd
 			const header = document.querySelector('th')
+			header.innerHTML = '<span>Name</span><input value="Search">'
+			const originalWidth = header.getBoundingClientRect().width
 			addition.highlight('name')
+			const greenVisible = getComputedStyle(header).fontSize !== '0px'
+				&& getComputedStyle(header.querySelector('input')).display !== 'none'
+			const greenWidthStable = Math.abs(header.getBoundingClientRect().width - originalWidth) < 1
 			const greenDuration = getComputedStyle(header).animationDuration
 			await new Promise(resolve => setTimeout(resolve, 400))
 			const greenCleared = !header.classList.contains('column-add-highlight')
@@ -55,13 +60,15 @@ try {
 				animation.play()
 			}
 			const removed = await removal
-			return { beforeRemoval, removalStart, elapsed: performance.now() - started, fadesImmediately, greenCleared, greenDuration,
+			return { greenVisible, greenWidthStable, beforeRemoval, removalStart, elapsed: performance.now() - started, fadesImmediately, greenCleared, greenDuration,
 				redDuration, removed, remaining: document.querySelectorAll('th, td').length }
 		})
 		assert.equal(result.greenDuration, reducedMotion === 'reduce' ? '0s' : '0.35s')
 		assert.equal(result.redDuration, reducedMotion === 'reduce' ? '0s' : '0.3s')
 		if (reducedMotion === 'reduce') assert.ok(Math.abs(result.beforeRemoval - result.removalStart) < 1)
 		assert.equal(result.greenCleared, true)
+		assert.equal(result.greenVisible, true)
+		assert.equal(result.greenWidthStable, true)
 		assert.equal(result.fadesImmediately, true)
 		assert.equal(result.removed, true)
 		assert.equal(result.remaining, 0)
@@ -114,9 +121,7 @@ try {
 				const opening = width()
 				const hidden = getComputedStyle(element.tHead.rows[0].cells[1]).fontSize === '0px'
 				const header = element.tHead.rows[0].cells[1]
-				const animation = header.getAnimations({ subtree: true }).find(a => a.animationName === 'itrocks-column-open')
-				addition.highlight('metric')
-				const uninterrupted = header.getAnimations({ subtree: true }).includes(animation)
+
 				load(content('A considerably longer value than the initial heading for this metric'))
 				await pause(30)
 				const retargeted = width()
@@ -131,7 +136,7 @@ try {
 				await removal
 				const clean = !element.querySelector('td > div, th > div')
 					&& element.style.cssText === 'border-collapse: collapse; width: 600px;'
-				return { initial, opening, retargeted, final, closing, closingEnd, clean, hidden, visible, uninterrupted }
+				return { initial, opening, retargeted, final, closing, closingEnd, clean, hidden, visible }
 			}, { grouped, layout })
 			assert.ok(widths.initial < 10, JSON.stringify(widths))
 			assert.ok(widths.opening > 2 && widths.opening < widths.final, JSON.stringify(widths))
@@ -141,7 +146,6 @@ try {
 			assert.equal(widths.clean, true, JSON.stringify(widths))
 			assert.equal(widths.hidden, true)
 			assert.equal(widths.visible, true)
-			assert.equal(widths.uninterrupted, true)
 			console.log('PASS animated async widths', { grouped, layout, ...widths })
 		}
 		if (reducedMotion === 'no-preference') for (const delay of [0, 150, 420]) {

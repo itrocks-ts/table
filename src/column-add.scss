@@ -6,7 +6,7 @@ table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td)[hidden] {
 table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td) {
 	&.column-add-highlight {
 		animation: itrocks-column-add-flash var(--column-fade, 350ms) ease-out;
-		&.column-add-loading {
+		&.column-add-new.column-add-loading {
 			animation: none;
 			background-color: color-mix(in srgb, #58b46b 35%, Canvas);
 		}
@@ -22,7 +22,8 @@ table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td) {
 		&::after { animation: itrocks-column-close 100ms ease-out both; }
 	}
 
-	&:is(.column-add-highlight, .column-remove-highlight) {
+	&.column-remove-highlight,
+	&.column-add-new:is(.column-add-opening, td, tbody th, tfoot th) {
 		box-sizing: border-box;
 		font-size: 0 !important;
 		height: var(--column-height);
@@ -48,9 +49,8 @@ table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td) {
 		background-color: color-mix(in srgb, #58b46b 5%, Canvas);
 	}
 
-	&.column-add-error {
-		outline: 1px solid #c33;
-		outline-offset: -2px;
+	&.column-add-error:is(td, tbody th, tfoot th) {
+		background-color: color-mix(in srgb, #d33 12%, Canvas);
 	}
 }
 

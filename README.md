@@ -268,10 +268,11 @@ match the current view.
   existing position, without invoking its creation/loading callbacks or issuing another commit.
 - `reveal(id): void` scrolls the horizontal container only as needed, accounting for frozen bounds.
 - `highlight(id): void` applies the same green/light/theme flash for new and existing columns, cleans up after 350 ms,
-  honours reduced motion and preserves keyboard focus and row selection.
+  honours reduced motion and preserves keyboard focus and row selection. Existing columns keep their content and width.
 - New columns open from zero to their measured width over 100 ms. The flash stays green until values arrive, then
   fades over the remainder of 350 ms from opening, with a minimum fade of 100 ms. Content remains hidden until the
-  fade ends; a non-breaking space keeps the cell painted and holds its measured width. Asynchronous values continue
+  fade ends for value cells; the heading and filter become visible after the 100 ms opening. A non-breaking space
+  keeps masked cells painted and holds their measured width. Asynchronous values continue
   opening from the current width towards the greater of the heading width and the loaded content width.
 - `remove(id, signal?): Promise<boolean>` reveals a column, shrinks it over 100 ms during a 300 ms red flash,
   hiding cell content immediately, then removes the header, body/footer cells and matching `col`. It returns false for
@@ -280,7 +281,8 @@ match the current view.
   Reduced motion skips width animation and uses a static red outline.
   The host persists the resulting configuration.
 - `retry(id): Promise<void>` retries a failed value callback. Failure retains the committed column and marks it with
-  `.column-add-error`; the consumer presents the error and a retry control. It never confirms another addition.
+  `.column-add-error`; data cells receive a discreet red background and the addition flash stops.
+  It never confirms another addition. The plugin adds no error text, retry control or automatic retry.
 - `begin(source): ColumnTransaction` creates a real provisional column without committing it. Its `ready` promise waits
   for optional values and resolves after error notification as well. `moveTo(index)` reuses public reorder placement
   and its existing boundaries. `commit()` validates it and returns `added` or `existing`; repeating commit returns
