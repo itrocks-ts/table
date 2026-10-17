@@ -14,7 +14,7 @@ const server = createServer(async (request, response) => {
 			<tbody><tr><td>Example</td></tr></tbody></table>`)
 		return
 	}
-	if (!/^\/[a-z-]+\/[a-z-]+\.(?:css|js)$/.test(path)) { response.writeHead(404).end(); return }
+	if (!/^\/[a-z-]+\/(?:[a-z-]+\/)*[a-z-]+\.(?:css|js)$/.test(path)) { response.writeHead(404).end(); return }
 	try {
 		response.setHeader('Content-Type', path.endsWith('.css') ? 'text/css' : 'text/javascript')
 		response.end(await readFile(new URL(`../..${path}`, import.meta.url)))
@@ -40,7 +40,9 @@ try {
 			await new Promise(resolve => setTimeout(resolve, 400))
 			const greenCleared = !header.classList.contains('column-add-highlight')
 			const started = performance.now()
+			const beforeRemoval = header.getBoundingClientRect().width
 			const removal = addition.remove('name')
+			const removalStart = header.getBoundingClientRect().width
 			const redDuration = getComputedStyle(header).animationDuration
 			const animation = header.getAnimations()[0]
 			let fadesImmediately = true
@@ -53,17 +55,132 @@ try {
 				animation.play()
 			}
 			const removed = await removal
-			return { elapsed: performance.now() - started, fadesImmediately, greenCleared, greenDuration,
+			return { beforeRemoval, removalStart, elapsed: performance.now() - started, fadesImmediately, greenCleared, greenDuration,
 				redDuration, removed, remaining: document.querySelectorAll('th, td').length }
 		})
 		assert.equal(result.greenDuration, reducedMotion === 'reduce' ? '0s' : '0.35s')
-		assert.equal(result.redDuration, reducedMotion === 'reduce' ? '0s' : '0.35s')
+		assert.equal(result.redDuration, reducedMotion === 'reduce' ? '0s' : '0.3s')
+		if (reducedMotion === 'reduce') assert.ok(Math.abs(result.beforeRemoval - result.removalStart) < 1)
 		assert.equal(result.greenCleared, true)
 		assert.equal(result.fadesImmediately, true)
 		assert.equal(result.removed, true)
 		assert.equal(result.remaining, 0)
-		assert.ok(result.elapsed >= 320 && result.elapsed < 650, JSON.stringify(result))
-		console.log('PASS matching 350 ms flashes', reducedMotion, JSON.stringify(result))
+		assert.ok(result.elapsed >= 280 && result.elapsed < 650, JSON.stringify(result))
+		console.log('PASS 350 ms addition and 300 ms removal flashes', reducedMotion, JSON.stringify(result))
+		if (reducedMotion === 'no-preference') for (const layout of ['table', 'list']) for (const grouped of [false, true]) {
+			await page.goto(`http://127.0.0.1:${server.address().port}/`)
+			const widths = await page.evaluate(async ({ grouped, layout }) => {
+				const { Table } = await import('/table/table.js')
+				const { TableColumnAdd } = await import('/table/column-add.js')
+				const { TableColumnReorder } = await import('/table/column-reorder.js')
+				const { TableFreeze } = await import('/table/freeze.js')
+				const { TableFreezeInheritBorder } = await import('/table/freeze/inherit-border.js')
+				const element = document.querySelector('table')
+				element.tHead.rows[0].insertCell().outerHTML = '<th data-freeze>Actions</th>'
+				element.tBodies[0].rows[0].insertCell().textContent = 'Open'
+				element.tHead.rows[0].cells[0].dataset.freeze = ''
+				element.classList.add('itrocks')
+				element.style.cssText = 'border-collapse:collapse;width:600px'
+				if (layout === 'list') {
+					element.classList.add('objects')
+					const link = document.createElement('link')
+					link.rel = 'stylesheet'
+					link.href = '/list/list.css'
+					document.head.append(link)
+					await new Promise(resolve => { link.onload = resolve })
+				}
+				const style = document.createElement('style')
+				style.textContent = 'th,td {padding:8px;white-space:nowrap;border:1px solid gray}'
+				document.head.append(style)
+				if (grouped) {
+					const group = document.createElement('colgroup')
+					group.append(document.createElement('col'), document.createElement('col'))
+					for (const col of group.children) col.dataset.freeze = ''
+					element.prepend(group)
+				}
+				const table = new Table(element, { plugins: [TableFreeze, TableFreezeInheritBorder, TableColumnReorder, TableColumnAdd] })
+				const addition = table.plugins.TableColumnAdd
+				const pause = ms => new Promise(resolve => setTimeout(resolve, ms))
+				const content = text => ({
+					header: Object.assign(document.createElement('th'), { innerHTML: text ? 'Metric<input name="search.metric">' : 'Metric' }),
+					cells: [Object.assign(document.createElement('td'), { innerHTML: `<a>${text}</a>` })]
+				})
+				let load
+				await addition.add({ id: 'metric', create: () => content(''),
+					load: () => new Promise(resolve => { load = resolve }) })
+				const width = () => element.tHead.rows[0].cells[1].getBoundingClientRect().width
+				const initial = width()
+				await pause(30)
+				const opening = width()
+				const hidden = getComputedStyle(element.tHead.rows[0].cells[1]).fontSize === '0px'
+				const header = element.tHead.rows[0].cells[1]
+				const animation = header.getAnimations({ subtree: true }).find(a => a.animationName === 'itrocks-column-open')
+				addition.highlight('metric')
+				const uninterrupted = header.getAnimations({ subtree: true }).includes(animation)
+				load(content('A considerably longer value than the initial heading for this metric'))
+				await pause(30)
+				const retargeted = width()
+				await pause(350)
+				const final = width()
+				const visible = getComputedStyle(element.tHead.rows[0].cells[1]).fontSize !== '0px'
+				const removal = addition.remove('metric')
+				await pause(30)
+				const closing = width()
+				await pause(100)
+				const closingEnd = width()
+				await removal
+				const clean = !element.querySelector('td > div, th > div')
+					&& element.style.cssText === 'border-collapse: collapse; width: 600px;'
+				return { initial, opening, retargeted, final, closing, closingEnd, clean, hidden, visible, uninterrupted }
+			}, { grouped, layout })
+			assert.ok(widths.initial < 10, JSON.stringify(widths))
+			assert.ok(widths.opening > 2 && widths.opening < widths.final, JSON.stringify(widths))
+			assert.ok(widths.retargeted > widths.opening && widths.retargeted < widths.final, JSON.stringify(widths))
+			assert.ok(widths.closing > 2 && widths.closing < widths.final, JSON.stringify(widths))
+			assert.ok(widths.closingEnd < widths.closing, JSON.stringify(widths))
+			assert.equal(widths.clean, true, JSON.stringify(widths))
+			assert.equal(widths.hidden, true)
+			assert.equal(widths.visible, true)
+			assert.equal(widths.uninterrupted, true)
+			console.log('PASS animated async widths', { grouped, layout, ...widths })
+		}
+		if (reducedMotion === 'no-preference') for (const delay of [0, 150, 420]) {
+			await page.goto(`http://127.0.0.1:${server.address().port}/`)
+			const flash = await page.evaluate(async delay => {
+				const { Table } = await import('/table/table.js')
+				const { TableColumnAdd } = await import('/table/column-add.js')
+				const { TableColumnReorder } = await import('/table/column-reorder.js')
+				const table = new Table(document.querySelector('table'), { plugins: [TableColumnReorder, TableColumnAdd] })
+				const addition = table.plugins.TableColumnAdd
+				const content = text => ({
+					header: Object.assign(document.createElement('th'), { textContent: 'Metric' }),
+					cells: [Object.assign(document.createElement('td'), { textContent: text })]
+				})
+				let load
+				const started = performance.now()
+				await addition.add({ id: 'metric', create: () => content(''),
+					load: () => new Promise(resolve => { load = resolve }) })
+				const header = () => table.element.tHead.rows[0].cells[1]
+				const green = getComputedStyle(header()).backgroundColor
+				const space = getComputedStyle(header(), '::after').content.includes('\u00a0')
+				await new Promise(resolve => setTimeout(resolve, delay))
+				const held = header().classList.contains('column-add-highlight')
+					&& getComputedStyle(header()).animationName === 'none'
+					&& getComputedStyle(header()).backgroundColor === green
+				const elapsed = performance.now() - started
+				load(content('Loaded value'))
+				await new Promise(resolve => setTimeout(resolve, 0))
+				const duration = parseFloat(header().style.getPropertyValue('--column-fade'))
+				await new Promise(resolve => setTimeout(resolve, duration + 40))
+				const revealed = !header().classList.contains('column-add-highlight')
+				return { duration, elapsed, held, revealed, space }
+			}, delay)
+			assert.equal(flash.held, true, JSON.stringify(flash))
+			assert.equal(flash.space, true)
+			assert.ok(Math.abs(flash.duration - Math.max(100, 350 - flash.elapsed)) < 25, JSON.stringify(flash))
+			assert.equal(flash.revealed, true)
+			console.log('PASS green hold and remaining fade', { delay, ...flash })
+		}
 		await page.close()
 	}
 }

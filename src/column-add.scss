@@ -5,11 +5,39 @@ table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td)[hidden] {
 
 table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td) {
 	&.column-add-highlight {
-		animation: itrocks-column-add-flash 350ms ease-out;
+		animation: itrocks-column-add-flash var(--column-fade, 350ms) ease-out;
+		&.column-add-loading {
+			animation: none;
+			background-color: color-mix(in srgb, #58b46b 35%, Canvas);
+		}
+	}
+
+	&.column-add-opening::after {
+		animation: itrocks-column-open 100ms ease-out both;
 	}
 
 	&.column-remove-highlight {
-		animation: itrocks-column-remove-flash 350ms ease-out;
+		animation: itrocks-column-remove-flash 300ms ease-out;
+
+		&::after { animation: itrocks-column-close 100ms ease-out both; }
+	}
+
+	&:is(.column-add-highlight, .column-remove-highlight) {
+		box-sizing: border-box;
+		font-size: 0 !important;
+		height: var(--column-height);
+		overflow: hidden;
+		padding: 0 !important;
+
+		> * { display: none !important; }
+		&::before { content: none !important; }
+		&::after {
+			content: "\00a0" !important;
+			display: block;
+			font-size: 1px;
+			line-height: 1px;
+			width: var(--column-width);
+		}
 	}
 
 	&.column-add-loading {
@@ -24,6 +52,16 @@ table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td) {
 		outline: 1px solid #c33;
 		outline-offset: -2px;
 	}
+}
+
+@keyframes itrocks-column-open {
+	from { width: var(--column-from, 0px); }
+	to { width: var(--column-width); }
+}
+
+@keyframes itrocks-column-close {
+	from { width: var(--column-width); }
+	to { width: 0; }
 }
 
 @keyframes itrocks-column-add-flash {
@@ -44,12 +82,14 @@ table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td) {
 @media (prefers-reduced-motion: reduce) {
 	table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td).column-remove-highlight {
 		animation: none;
+		&::after { animation: none; }
 		outline: 2px solid #c33;
 		outline-offset: -2px;
 	}
 
-	table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td).column-add-highlight {
+	table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td):is(.column-add-highlight, .column-add-opening) {
 		animation: none;
+		&::after { animation: none; }
 		outline: 2px solid color-mix(in srgb, #58b46b 65%, Canvas);
 		outline-offset: -2px;
 	}

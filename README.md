@@ -269,10 +269,16 @@ match the current view.
 - `reveal(id): void` scrolls the horizontal container only as needed, accounting for frozen bounds.
 - `highlight(id): void` applies the same green/light/theme flash for new and existing columns, cleans up after 350 ms,
   honours reduced motion and preserves keyboard focus and row selection.
-- `remove(id, signal?): Promise<boolean>` reveals a column, flashes its cells red with an immediate 350 ms fade,
-  then removes the header, body/footer cells and matching `col`. It returns false for a missing column or cancellation. Repeated calls share the
-  pending removal; abort, disposal and reset clear the flash without deletion. Late values cannot restore a removed
-  column. Reduced motion uses a static red outline. The host persists the resulting configuration.
+- New columns open from zero to their measured width over 100 ms. The flash stays green until values arrive, then
+  fades over the remainder of 350 ms from opening, with a minimum fade of 100 ms. Content remains hidden until the
+  fade ends; a non-breaking space keeps the cell painted and holds its measured width. Asynchronous values continue
+  opening from the current width towards the greater of the heading width and the loaded content width.
+- `remove(id, signal?): Promise<boolean>` reveals a column, shrinks it over 100 ms during a 300 ms red flash,
+  hiding cell content immediately, then removes the header, body/footer cells and matching `col`. It returns false for
+  a missing column or cancellation. Repeated calls share the pending removal; abort, disposal and reset clear the flash
+  without deletion. Late values cannot restore a removed column. Cancellation restores the natural width.
+  Reduced motion skips width animation and uses a static red outline.
+  The host persists the resulting configuration.
 - `retry(id): Promise<void>` retries a failed value callback. Failure retains the committed column and marks it with
   `.column-add-error`; the consumer presents the error and a retry control. It never confirms another addition.
 - `begin(source): ColumnTransaction` creates a real provisional column without committing it. Its `ready` promise waits
