@@ -269,7 +269,11 @@ match the current view.
 - `reveal(id): void` scrolls the horizontal container only as needed, accounting for frozen bounds.
 - `highlight(id): void` applies the same green/light/theme flash for new and existing columns, cleans up after 350 ms,
   honours reduced motion and preserves keyboard focus and row selection. Existing columns keep their content and width.
-- New columns open from zero to their measured width over 100 ms. The flash stays green until values arrive, then
+- Columns appended at the right edge (before any right-frozen columns) appear at full width immediately, with their
+  heading, filter and placeholder cells visible in green. Loaded values appear immediately and scroll the table to its
+  right edge over 100 ms if needed. Reduced motion makes this scroll immediate.
+- Columns inserted between existing columns open from zero to their measured width over 100 ms.
+  The flash stays green until values arrive, then
   fades over the remainder of 350 ms from opening, with a minimum fade of 100 ms. Content remains hidden until the
   fade ends for value cells; the heading and filter become visible after the 100 ms opening. A non-breaking space
   keeps masked cells painted and holds their measured width. Asynchronous values continue

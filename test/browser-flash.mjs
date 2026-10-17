@@ -86,6 +86,8 @@ try {
 				element.tHead.rows[0].insertCell().outerHTML = '<th data-freeze>Actions</th>'
 				element.tBodies[0].rows[0].insertCell().textContent = 'Open'
 				element.tHead.rows[0].cells[0].dataset.freeze = ''
+				element.tHead.rows[0].insertCell(1).outerHTML = '<th>Existing</th>'
+				element.tBodies[0].rows[0].insertCell(1).textContent = 'Existing value'
 				element.classList.add('itrocks')
 				element.style.cssText = 'border-collapse:collapse;width:600px'
 				if (layout === 'list') {
@@ -101,8 +103,9 @@ try {
 				document.head.append(style)
 				if (grouped) {
 					const group = document.createElement('colgroup')
-					group.append(document.createElement('col'), document.createElement('col'))
-					for (const col of group.children) col.dataset.freeze = ''
+					group.append(document.createElement('col'), document.createElement('col'), document.createElement('col'))
+					group.firstElementChild.dataset.freeze = ''
+					group.lastElementChild.dataset.freeze = ''
 					element.prepend(group)
 				}
 				const table = new Table(element, { plugins: [TableFreeze, TableFreezeInheritBorder, TableColumnReorder, TableColumnAdd] })
@@ -113,8 +116,10 @@ try {
 					cells: [Object.assign(document.createElement('td'), { innerHTML: `<a>${text}</a>` })]
 				})
 				let load
-				await addition.add({ id: 'metric', create: () => content(''),
+				const transaction = addition.begin({ id: 'metric', create: () => content(''),
 					load: () => new Promise(resolve => { load = resolve }) })
+				transaction.moveTo(1)
+				transaction.commit()
 				const width = () => element.tHead.rows[0].cells[1].getBoundingClientRect().width
 				const initial = width()
 				await pause(30)
@@ -162,11 +167,11 @@ try {
 				})
 				let load
 				const started = performance.now()
-				await addition.add({ id: 'metric', create: () => content(''),
+				await addition.add({ id: 'metric', create: () => content('\u00a0'),
 					load: () => new Promise(resolve => { load = resolve }) })
 				const header = () => table.element.tHead.rows[0].cells[1]
 				const green = getComputedStyle(header()).backgroundColor
-				const space = getComputedStyle(header(), '::after').content.includes('\u00a0')
+				const space = table.element.tBodies[0].rows[0].lastElementChild.textContent === '\u00a0'
 				await new Promise(resolve => setTimeout(resolve, delay))
 				const held = header().classList.contains('column-add-highlight')
 					&& getComputedStyle(header()).animationName === 'none'
@@ -184,6 +189,82 @@ try {
 			assert.ok(Math.abs(flash.duration - Math.max(100, 350 - flash.elapsed)) < 25, JSON.stringify(flash))
 			assert.equal(flash.revealed, true)
 			console.log('PASS green hold and remaining fade', { delay, ...flash })
+		}
+		for (const frozen of [false, true]) {
+			await page.goto(`http://127.0.0.1:${server.address().port}/`)
+			const result = await page.evaluate(async frozen => {
+				const { Table } = await import('/table/table.js')
+				const { TableColumnAdd } = await import('/table/column-add.js')
+				const { TableColumnReorder } = await import('/table/column-reorder.js')
+				const { TableFreeze } = await import('/table/freeze.js')
+				const element = document.querySelector('table')
+				const scroll = document.createElement('div')
+				scroll.style.cssText = 'width:400px;overflow:auto'
+				element.before(scroll)
+				scroll.append(element)
+				element.style.cssText = 'width:max-content;border-collapse:collapse'
+				element.tHead.rows[0].insertCell().outerHTML = '<th data-column-id="existing">Existing</th>'
+				element.tBodies[0].rows[0].insertCell().textContent = 'Existing value'
+				if (frozen) {
+					element.tHead.rows[0].insertCell().outerHTML = '<th data-freeze>Actions</th>'
+					element.tBodies[0].rows[0].insertCell().textContent = 'Open'
+				}
+				const style = document.createElement('style')
+				style.textContent = 'th,td {min-width:180px;padding:8px;white-space:nowrap}'
+				document.head.append(style)
+				const table = new Table(element, { plugins: [TableFreeze, TableColumnReorder, TableColumnAdd] })
+				const addition = table.plugins.TableColumnAdd
+				const content = text => ({
+					header: Object.assign(document.createElement('th'), { innerHTML: 'Metric<input>' }),
+					cells: [Object.assign(document.createElement('td'), { textContent: text })]
+				})
+				let load
+				const transaction = addition.begin({ id: 'metric', create: () => content('\u00a0'),
+					load: () => new Promise(resolve => { load = resolve }) })
+				transaction.commit()
+				const header = transaction.header
+				const beforeReveal = scroll.scrollLeft
+				const immediate = {
+					fullWidth: header.getBoundingClientRect().width >= 196,
+					green: header.classList.contains('column-add-highlight'),
+					opening: header.classList.contains('column-add-opening'),
+					text: getComputedStyle(header).fontSize !== '0px',
+					filter: getComputedStyle(header.querySelector('input')).display !== 'none',
+					space: element.tBodies[0].rows[0].cells[header.cellIndex].textContent === '\u00a0'
+				}
+				addition.reveal('metric')
+				const revealed = scroll.scrollLeft > beforeReveal
+				// Values make the final column wider, requiring another scroll after the initial reveal.
+				load(content('A loaded value '.repeat(6)))
+				await transaction.ready
+				const loadedAt = performance.now()
+				const from = scroll.scrollLeft
+				const target = scroll.scrollWidth - scroll.clientWidth
+				const samples = []
+				while (performance.now() - loadedAt < 150) {
+					await new Promise(resolve => requestAnimationFrame(resolve))
+					samples.push({ elapsed: performance.now() - loadedAt, left: scroll.scrollLeft })
+				}
+				const final = scroll.scrollLeft
+				// The same path needs no additional animation when it is already at the right edge.
+				addition.scrollToEnd()
+				const noExtraFrame = addition.scrollFrame === undefined
+				return { immediate, revealed, from, target, samples, final, noExtraFrame }
+			}, frozen)
+			assert.deepEqual(result.immediate, {
+				fullWidth: true, green: true, opening: false, text: true, filter: true, space: true
+			})
+			assert.equal(result.revealed, true)
+			assert.ok(Math.abs(result.final - result.target) <= 1, JSON.stringify(result))
+			assert.equal(result.noExtraFrame, true)
+			if (reducedMotion === 'no-preference') {
+				assert.ok(result.target > result.from + 20, JSON.stringify(result))
+				assert.ok(result.samples.some(sample => sample.left > result.from && sample.left < result.target - 1),
+					JSON.stringify(result))
+				assert.ok(result.samples.find(sample => Math.abs(sample.left - result.target) <= 1)?.elapsed <= 130,
+					JSON.stringify(result))
+			}
+			console.log('PASS full-width append and 100 ms loaded scroll', { frozen, reducedMotion })
 		}
 		await page.close()
 	}

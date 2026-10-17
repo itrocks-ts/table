@@ -62,6 +62,7 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 	protected pending = new Map<string, Pending>()
 	protected removals = new Map<string, { abort: AbortController; promise: Promise<boolean> }>()
 	protected reorder!: TableColumnReorder
+	protected scrollFrame?: number
 
 	add(source: ColumnSource): Promise<ColumnResult>
 	{
@@ -217,6 +218,7 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 				if (!existing) {
 					entry.started = performance.now()
 					this.highlight(source.id, true)
+					if (entry.settled && this.isLastColumn(entry.content.header)) this.scrollToEnd()
 				}
 				if (existing || !source.load || (entry.settled && !entry.content.header.classList.contains('column-add-error')))
 					this.pending.delete(source.id)
@@ -262,6 +264,8 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 	{
 		this.external?.cancel()
 		this.disposed = true
+		if (this.scrollFrame !== undefined) cancelAnimationFrame(this.scrollFrame)
+		this.scrollFrame = undefined
 		for (const removal of this.removals.values()) removal.abort.abort()
 		this.removals.clear()
 		for (const entry of [...this.pending.values()]) {
@@ -298,6 +302,7 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 		const started = opening ? this.pending.get(id)?.started : undefined
 		const duration = started === undefined ? 350 : Math.max(100, 350 - (performance.now() - started))
 		const waiting = opening && header.classList.contains('column-add-loading')
+		const expanding = opening && !this.isLastColumn(header)
 		for (const row of Array.from(this.of.element.rows)) {
 			const cell = row.cells[header.cellIndex]
 			if (!cell) continue
@@ -309,8 +314,8 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 		for (const row of Array.from(this.of.element.rows)) {
 			const cell = row.cells[header.cellIndex]
 			if (!cell) continue
-			cell.classList.toggle('column-add-new', opening)
-			cell.classList.toggle('column-add-opening', opening)
+			cell.classList.toggle('column-add-new', expanding)
+			cell.classList.toggle('column-add-opening', expanding)
 			cell.classList.add('column-add-highlight')
 			cell.style?.setProperty('--column-fade', `${duration}ms`)
 			this.highlights.set(cell, waiting ? undefined : setTimeout(() => {
@@ -320,7 +325,7 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 				if (!this.highlights.size) this.refresh()
 			}, duration))
 		}
-		if (opening && header.ownerDocument) setTimeout(() => {
+		if (expanding && header.ownerDocument) setTimeout(() => {
 			if (this.disposed || !header.isConnected) return
 			header.classList.remove('column-add-opening')
 			this.refresh()
@@ -334,6 +339,13 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 		if (!(reorder instanceof TableColumnReorder)) throw new Error('Configure TableColumnReorder before TableColumnAdd')
 		this.reorder = reorder
 		this.of.onReset.push(() => this.dispose())
+	}
+
+	protected isLastColumn(header: HTMLTableCellElement): boolean
+	{
+		const freeze = this.of.plugins.TableFreeze
+		const right = freeze instanceof TableFreeze ? freeze.rightColumnCount : 0
+		return header.cellIndex === this.headers().cells.length - right - 1
 	}
 
 	protected live(entry: Pending)
@@ -386,6 +398,7 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 				}
 				this.highlight(entry.source.id, true)
 				if (!opening) content.header.classList.remove('column-add-opening')
+				if (this.isLastColumn(content.header)) this.scrollToEnd()
 			}
 		}
 		catch (error) {
@@ -520,6 +533,30 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 			scroll.scrollLeft += Math.max(rect.left - left, rect.right - right)
 		else if ((rect.right > right) && (rect.left > left))
 			scroll.scrollLeft += Math.min(rect.right - right, rect.left - left)
+	}
+
+	protected scrollToEnd()
+	{
+		if (this.scrollFrame !== undefined) cancelAnimationFrame(this.scrollFrame)
+		this.scrollFrame = undefined
+		const scroll = this.reorder.scrollContainer()
+		if (!scroll || this.disposed) return
+		const from = scroll.scrollLeft
+		const to = Math.max(from, scroll.scrollWidth - scroll.clientWidth)
+		if (to <= from) return
+		if (scroll.ownerDocument?.defaultView?.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			scroll.scrollLeft = to
+			return
+		}
+		const started = performance.now()
+		const step = (time: number) => {
+			this.scrollFrame = undefined
+			if (this.disposed) return
+			const progress = Math.min(1, Math.max(0, (time - started) / 100))
+			scroll.scrollLeft = from + (to - from) * (1 - (1 - progress) ** 2)
+			if (progress < 1) this.scrollFrame = requestAnimationFrame(step)
+		}
+		this.scrollFrame = requestAnimationFrame(step)
 	}
 
 	retry(id: string): Promise<void>
