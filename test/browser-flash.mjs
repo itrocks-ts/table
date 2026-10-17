@@ -266,6 +266,62 @@ try {
 			}
 			console.log('PASS full-width append and 100 ms loaded scroll', { frozen, reducedMotion })
 		}
+		if (reducedMotion === 'no-preference') for (const loadedBeforeEntry of [false, true]) {
+			await page.goto(`http://127.0.0.1:${server.address().port}/`)
+			const positions = await page.evaluate(async loadedBeforeEntry => {
+				const { Table } = await import('/table/table.js')
+				const { TableColumnAdd } = await import('/table/column-add.js')
+				const { TableColumnReorder } = await import('/table/column-reorder.js')
+				const element = document.querySelector('table')
+				element.innerHTML = '<thead><tr><th data-column-id="fixed">Fixed</th>'
+					+ '<th data-column-id="wide">Wide</th></tr></thead><tbody><tr><td>Fixed</td><td>Wide</td></tr></tbody>'
+				const style = document.createElement('style')
+				style.textContent = 'table {width:max-content;border-spacing:0} th,td {padding:0}'
+					+ 'th:first-child,td:first-child {min-width:80px} [data-column-id="wide"] {min-width:400px}'
+				document.head.append(style)
+				const table = new Table(element, { plugins: [
+					new TableColumnReorder({ isReorderable: header => header.dataset.columnId !== 'fixed' }), TableColumnAdd
+				] })
+				const addition = table.plugins.TableColumnAdd
+				const content = loaded => ({
+					header: Object.assign(document.createElement('th'), {
+						textContent: loaded ? 'Loaded value' : 'New', style: `min-width:${loaded ? 160 : 100}px`
+					}), cells: [Object.assign(document.createElement('td'), { textContent: loaded ? 'Value' : '\u00a0' })]
+				})
+				let load
+				const source = { id: 'new', create: () => content(false),
+					load: () => new Promise(resolve => { load = resolve }) }
+				const creation = addition.begin(source, { effects: false, hidden: true })
+				creation.commit()
+				const bounds = element.querySelector('[data-column-id="wide"]').getBoundingClientRect()
+				const pointer = clientX => ({ clientX, clientY: bounds.top + 10, pointerId: 1, pointerType: 'mouse' })
+				const drag = addition.beginExternal(source, pointer(1200), { adding: true, removal: true })
+				if (loadedBeforeEntry) { load(content(true)); await creation.ready }
+				const frame = () => new Promise(resolve => requestAnimationFrame(resolve))
+				const start = bounds.left + bounds.width / 2
+				drag.move(pointer(start))
+				await frame()
+				const indices = () => [...element.tHead.rows[0].cells].findIndex(cell => cell.dataset.columnId === 'new')
+				const left = [indices()]
+				for (let step = 1; step <= 20; step ++) {
+					drag.move(pointer(start - step))
+					await frame()
+					left.push(indices())
+					if (step === 5 && !loadedBeforeEntry) { load(content(true)); await creation.ready }
+				}
+				const right = []
+				for (let step = 1; step <= 20; step ++) {
+					drag.move(pointer(start + step))
+					await frame()
+					right.push(indices())
+				}
+				await drag.finish(pointer(start + 20))
+				return { left, right }
+			}, loadedBeforeEntry)
+			assert.deepEqual(positions.left, Array(21).fill(1))
+			assert.deepEqual(positions.right, Array(20).fill(2))
+			console.log('PASS one-pixel addition movement beside a wide column', { loadedBeforeEntry })
+		}
 		await page.close()
 	}
 }

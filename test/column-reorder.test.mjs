@@ -418,3 +418,37 @@ test('unexpected capture loss restores order and clears the drag without saving'
 	}
 	finally { f.reorder.finish(false); f.restore() }
 })
+
+test('one-pixel external movement cannot reverse placement around a wider column', () => {
+	for (const adding of [false, true]) for (const direction of [-1, 1]) {
+		const f = fixture({}, direction < 0 ? ['select', 'wide', 'new'] : ['select', 'new', 'wide'])
+		try {
+			for (const row of f.rows) for (const cell of row.cells) {
+				const width = cell => cell.name === 'wide' ? 200 : 100
+				cell.getBoundingClientRect = () => {
+					const left = row.cells.slice(0, row.cells.indexOf(cell))
+						.reduce((sum, previous) => sum + width(previous), 0)
+					return { left, right: left + width(cell), top: 100, bottom: 140 }
+				}
+			}
+			const header = f.rows[0].cells.find(cell => cell.name === 'new')
+			const point = clientX => ({ clientX, clientY: 120, pointerId: 1, pointerType: 'mouse' })
+			const start = direction < 0 ? 250 : 220
+			const operation = f.reorder.beginExternal(header, point(start), { adding, removal: true })
+			f.reorder.animate(0)
+			const index = f.rows[0].cells.indexOf(header)
+			assert.equal(index, direction < 0 ? 1 : 2)
+			for (let step = 1; step <= 20; step ++) {
+				operation.move(point(start + direction * step))
+				f.reorder.animate(step * 16)
+				assert.equal(f.rows[0].cells.indexOf(header), index, `direction ${direction}, step ${step}`)
+			}
+			// Once the pointer really reverses, crossing the neighbouring edge still swaps back.
+			operation.move(point(direction < 0 ? 310 : 190))
+			f.reorder.animate(400)
+			assert.equal(f.rows[0].cells.indexOf(header), direction < 0 ? 2 : 1)
+			operation.cancel()
+		}
+		finally { f.reorder.finish(false); f.restore() }
+	}
+})

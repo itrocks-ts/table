@@ -26,6 +26,7 @@ interface Drag extends Press
 	maximum:   number
 	minimum:   number
 	onReveal?: () => void
+	positioned: boolean
 	removal:   boolean
 	remove:    boolean
 	rows:      HTMLTableRowElement[]
@@ -70,6 +71,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		const direction = pointerDirection || scrollDirection
 		const target    = direction ? this.target(drag, direction) : drag.index
 		if (target !== drag.index) this.move(drag, target)
+		drag.positioned = true
 	}
 
 	/** The source owns pointer capture; this operation owns target geometry and rollback. */
@@ -365,6 +367,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 			...press,
 			adding: options.adding ?? false,
 			onReveal: options.onReveal,
+			positioned: !external,
 			removal: options.removal ?? !external,
 			external,
 			cells:     rows.map(row => row.cells[initial]),
@@ -459,7 +462,8 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 	{
 		const drag = this.drag!
 		if ((x === drag.x) && (y === drag.y)) return
-		const source = drag.external ? drag.header.getBoundingClientRect() : undefined
+		// Only the first placement aligns an external pointer with its attached column.
+		const source = drag.positioned ? undefined : drag.header.getBoundingClientRect()
 		drag.direction = source ? (x === drag.x ? 0 : x < source.left ? -1 : x > source.right ? 1 : 0)
 			: Math.sign(x - drag.x) as Direction
 		drag.x         = x
