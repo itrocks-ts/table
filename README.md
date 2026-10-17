@@ -269,6 +269,10 @@ match the current view.
 - `reveal(id): void` scrolls the horizontal container only as needed, accounting for frozen bounds.
 - `highlight(id): void` applies the same green/light/theme flash for new and existing columns, cleans up after 900 ms,
   honours reduced motion and preserves keyboard focus and row selection.
+- `remove(id, signal?): Promise<boolean>` reveals a column, flashes its cells red for 350 ms and removes the header,
+  body/footer cells and matching `col`. It returns false for a missing column or cancellation. Repeated calls share the
+  pending removal; abort, disposal and reset clear the flash without deletion. Late values cannot restore a removed
+  column. Reduced motion uses a static red outline. The host persists the resulting configuration.
 - `retry(id): Promise<void>` retries a failed value callback. Failure retains the committed column and marks it with
   `.column-add-error`; the consumer presents the error and a retry control. It never confirms another addition.
 - `begin(source): ColumnTransaction` creates a real provisional column without committing it. Its `ready` promise waits
@@ -288,6 +292,8 @@ An aborted or removed operation cannot be recreated by late values.
 
 `TableColumnReorder.moveColumn(header, index)` is public placement without header gesture callbacks. It rejects an
 active header interaction and clamps movement to that header's reorderable boundaries.
+`TableColumnReorder.removeColumn(header): boolean` removes a reorderable column and its `col` without header callbacks.
+It rejects an active header interaction and returns false for a missing or fixed column.
 `TableColumnReorder.replaceCell(previous, replacement)`
 preserves an active header gesture during asynchronous cell replacement. `TableFreeze.refresh()` recalculates sticky
 offsets after structural changes. `Table.refreshStyleSheets()` reapplies the managed styles.

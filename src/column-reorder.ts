@@ -124,6 +124,19 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		this.moveCells(index, Math.max(minimum, Math.min(maximum, Math.trunc(targetIndex))))
 	}
 
+	/** Remove a reorderable column without committing a header gesture or invoking its callbacks. */
+	removeColumn(header: HTMLTableCellElement): boolean
+	{
+		if (this.drag || this.press) throw new Error('A header interaction is active')
+		if (header.parentElement !== this.triggerRow() || !(this.options.isReorderable?.(header) ?? true))
+			return false
+		const index = header.cellIndex
+		const column = this.of.element.querySelectorAll<HTMLTableColElement>(':scope > colgroup > col')[index]
+		for (const row of this.rows()) row.cells[index]?.remove()
+		column?.remove()
+		return true
+	}
+
 	/** Retain the active gesture when asynchronous rendering replaces one of its cells. */
 	replaceCell(previous: HTMLTableCellElement, replacement: HTMLTableCellElement)
 	{

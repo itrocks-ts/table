@@ -8,6 +8,10 @@ table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td) {
 		animation: itrocks-column-add-flash 850ms ease-out;
 	}
 
+	&.column-remove-highlight {
+		animation: itrocks-column-remove-flash 350ms ease-out;
+	}
+
 	&.column-add-loading {
 		cursor: progress;
 	}
@@ -31,7 +35,19 @@ table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td) {
 	}
 }
 
+@keyframes itrocks-column-remove-flash {
+	0%, 45% {
+		background-color: color-mix(in srgb, #d33 50%, Canvas);
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
+	table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td).column-remove-highlight {
+		animation: none;
+		outline: 2px solid #c33;
+		outline-offset: -2px;
+	}
+
 	table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td).column-add-highlight {
 		animation: none;
 		outline: 2px solid color-mix(in srgb, #58b46b 65%, Canvas);

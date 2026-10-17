@@ -334,3 +334,55 @@ test('external data failure is retryable after a valid drop and does not control
 	}
 	finally { f.restore() }
 })
+
+
+test('remove reveals and marks every cell before deletion and ignores late values', async () => {
+	const f = fixture(), values = deferred(), events = []
+	try {
+		let signal
+		await f.addition.add({ id: 'remove', create: () => f.content('pending'), load: abort => {
+			signal = abort
+			return values.promise
+		} })
+		f.addition.reveal = id => events.push(['reveal', id])
+		const removal = f.addition.remove('remove')
+		assert.equal(f.addition.remove('remove'), removal)
+		assert.deepEqual(events, [['reveal', 'remove']])
+		assert.ok(f.rows.every(row => row.cells[2].classList.contains('column-remove-highlight')))
+		assert.equal(await removal, true)
+		assert.equal(signal.aborted, true)
+		assert.ok(f.rows.every(row => row.cells.length === 2))
+		values.resolve(f.content('late'))
+		await new Promise(resolve => setImmediate(resolve))
+		assert.ok(f.rows.every(row => row.cells.length === 2))
+		assert.equal(await f.addition.remove('remove'), false)
+	}
+	finally { f.reset() }
+})
+
+test('abort and reset cancel pending removal and clear its red highlight', async () => {
+	for (const action of ['abort', 'reset']) {
+		const f = fixture(), abort = new AbortController()
+		const removal = f.addition.remove('a', abort.signal)
+		if (action === 'abort') abort.abort()
+		else f.reset()
+		assert.equal(await removal, false)
+		assert.ok(f.rows.every(row => row.cells.length === 2))
+		assert.ok(f.rows.every(row => !row.cells[0].classList.contains('column-remove-highlight')))
+		f.reset()
+	}
+})
+
+test('loaded values retain the removal flash and are removed at the same position', async () => {
+	const f = fixture(), values = deferred()
+	try {
+		await f.addition.add({ id: 'remove', create: () => f.content('pending'), load: () => values.promise })
+		const removal = f.addition.remove('remove')
+		values.resolve(f.content('loaded'))
+		await new Promise(resolve => setImmediate(resolve))
+		assert.ok(f.rows.every(row => row.cells[2].classList.contains('column-remove-highlight')))
+		assert.equal(await removal, true)
+		assert.ok(f.rows.every(row => row.cells.length === 2))
+	}
+	finally { f.reset() }
+})

@@ -59,6 +59,7 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 	protected highlights = new Map<HTMLTableCellElement, ReturnType<typeof setTimeout>>()
 	protected identities = new WeakMap<HTMLTableCellElement, string>()
 	protected pending = new Map<string, Pending>()
+	protected removals = new Map<string, { abort: AbortController; promise: Promise<boolean> }>()
 	protected reorder!: TableColumnReorder
 
 	add(source: ColumnSource): Promise<ColumnResult>
@@ -257,6 +258,8 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 	{
 		this.external?.cancel()
 		this.disposed = true
+		for (const removal of this.removals.values()) removal.abort.abort()
+		this.removals.clear()
 		for (const entry of [...this.pending.values()]) {
 			entry.transaction.cancel()
 			entry.abort.abort()
@@ -338,6 +341,8 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 			this.identities.set(content.header, entry.source.id)
 			content.header.dataset.columnId = entry.source.id
 			const highlighted = old.header.classList.contains('column-add-highlight')
+			if (old.header.classList.contains('column-remove-highlight'))
+				for (const cell of [content.header, ...content.cells]) cell.classList.add('column-remove-highlight')
 			this.mark(entry, 'provisional', entry.transaction.state === 'provisional')
 			this.mark(entry, 'loading', false)
 			this.refresh()
@@ -376,6 +381,60 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 		const freeze = this.of.plugins.TableFreeze
 		if (freeze instanceof TableFreeze) freeze.refresh()
 		this.of.refreshStyleSheets()
+	}
+
+	/** Reveal and briefly mark a column in red before removing it. */
+	remove(id: string, signal?: AbortSignal): Promise<boolean>
+	{
+		const pending = this.removals.get(id)
+		if (pending) return pending.promise
+		if (this.disposed || signal?.aborted || !this.find(id)) return Promise.resolve(false)
+		if (this.external || this.pending.get(id)?.transaction.state === 'provisional')
+			return Promise.reject(new Error('A column interaction is active'))
+		const abort = new AbortController()
+		const cancelled = AbortSignal.any([abort.signal, ...(signal ? [signal] : [])])
+		const promise = this.removeColumn(id, cancelled).finally(() => {
+			if (this.removals.get(id)?.abort === abort) this.removals.delete(id)
+		})
+		this.removals.set(id, { abort, promise })
+		return promise
+	}
+
+	protected async removeColumn(id: string, signal: AbortSignal): Promise<boolean>
+	{
+		this.reveal(id)
+		const header = this.find(id)!
+		const cells = Array.from(this.of.element.rows).map(row => row.cells[header.cellIndex]).filter(Boolean)
+		for (const cell of cells) {
+			clearTimeout(this.highlights.get(cell))
+			this.highlights.delete(cell)
+			cell.classList.remove('column-add-highlight')
+			cell.classList.add('column-remove-highlight')
+		}
+		try {
+			await new Promise<void>(resolve => {
+				const finish = () => {
+					clearTimeout(timer)
+					signal.removeEventListener('abort', finish)
+					resolve()
+				}
+				const timer = setTimeout(finish, 350)
+				signal.addEventListener('abort', finish, { once: true })
+			})
+			const current = this.find(id)
+			if (this.disposed || signal.aborted || !current) return false
+			if (!this.reorder.removeColumn(current)) return false
+			const entry = this.pending.get(id)
+			entry?.abort.abort()
+			this.pending.delete(id)
+			this.refresh()
+			return true
+		}
+		finally {
+			const current = this.find(id)
+			if (current) cells.push(...Array.from(this.of.element.rows).map(row => row.cells[current.cellIndex]))
+			for (const cell of cells) cell?.classList.remove('column-remove-highlight')
+		}
 	}
 
 	reveal(id: string)
