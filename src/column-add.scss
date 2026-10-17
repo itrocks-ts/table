@@ -9,7 +9,7 @@ table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td) {
 	}
 
 	&.column-remove-highlight {
-		animation: itrocks-column-remove-flash 350ms ease-out;
+		animation: itrocks-column-remove-flash 150ms ease-out;
 	}
 
 	&.column-add-loading {
@@ -36,7 +36,7 @@ table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td) {
 }
 
 @keyframes itrocks-column-remove-flash {
-	0%, 45% {
+	0% {
 		background-color: color-mix(in srgb, #d33 50%, Canvas);
 	}
 }

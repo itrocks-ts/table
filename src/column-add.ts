@@ -418,7 +418,7 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 					signal.removeEventListener('abort', finish)
 					resolve()
 				}
-				const timer = setTimeout(finish, 350)
+				const timer = setTimeout(finish, 150)
 				signal.addEventListener('abort', finish, { once: true })
 			})
 			const current = this.find(id)

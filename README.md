@@ -269,8 +269,8 @@ match the current view.
 - `reveal(id): void` scrolls the horizontal container only as needed, accounting for frozen bounds.
 - `highlight(id): void` applies the same green/light/theme flash for new and existing columns, cleans up after 900 ms,
   honours reduced motion and preserves keyboard focus and row selection.
-- `remove(id, signal?): Promise<boolean>` reveals a column, flashes its cells red for 350 ms and removes the header,
-  body/footer cells and matching `col`. It returns false for a missing column or cancellation. Repeated calls share the
+- `remove(id, signal?): Promise<boolean>` reveals a column, flashes its cells red with an immediate 150 ms fade,
+  then removes the header, body/footer cells and matching `col`. It returns false for a missing column or cancellation. Repeated calls share the
   pending removal; abort, disposal and reset clear the flash without deletion. Late values cannot restore a removed
   column. Reduced motion uses a static red outline. The host persists the resulting configuration.
 - `retry(id): Promise<void>` retries a failed value callback. Failure retains the committed column and marks it with
