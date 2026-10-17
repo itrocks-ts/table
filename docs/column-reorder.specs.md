@@ -26,10 +26,10 @@ does not persist the selected order.
 ### Live reordering
 
 - The source column remains a real column: no clone, placeholder, or floating element follows the pointer.
-- When the pointer crosses 10 pixels beyond the physical boundary of a neighboring column, the source is inserted at
-  that position. A fast movement may cross several columns in one operation.
-- Reordering is horizontal and continues while the pointer is above, below, or outside the table. Its actual direction
-  must be taken into account to prevent oscillation caused by width changes after insertion.
+- Hovering the source column leaves its position unchanged. Over another column, moving left inserts the source
+  before it and moving right inserts it after it. The previous hovered column is not retained.
+- No placement occurs without pointer or automatic scrolling movement. Nodes are moved only if the target index changes.
+- Reordering is horizontal and continues while the pointer is above, below, or outside the table.
 - All cells in the column are moved together across the `thead`, every `tbody`, and the `tfoot`. If the table has a
   simple `colgroup`, the corresponding `<col>` moves with them.
 - DOM nodes are moved rather than recreated: their identity, listeners, and values are preserved. The relative order
@@ -118,7 +118,7 @@ The current code already provides the primary user flow:
 - a configurable horizontal threshold, pointer capture, and computation batching with `requestAnimationFrame`;
 - direct, live insertion of the cell at the same index in every row returned by `table.rows`;
 - movement of the corresponding `<col>` when one is found;
-- a 10-pixel penetration threshold, direction tracking, and rectangle recalculation on every relevant frame;
+- placement before or after the currently hovered column according to direction, with no previous-hover tracking;
 - automatic scrolling of the first horizontally scrollable ancestor, using the specified areas and speed;
 - commit on `pointerup`, restoration on Escape, `pointercancel`, loss of table pointer capture, and reset;
 - suppression of the click following a drag, including delayed touch clicks, while preserving the next tap;
@@ -138,7 +138,7 @@ first-`tbody` fallback. Physical mobile devices and other browser engines have n
   and leave the table partially reordered.
 - **Complex `colgroup` structures**: multiple `colgroup` elements, a `<col>` count different from the cell count, or a
   `span` greater than 1 may desynchronize styles, move the wrong `<col>`, or cause an exception.
-- **Hidden or zero-width columns**: their rectangles cannot provide a reliable crossing threshold.
+- **Hidden or zero-width columns**: their rectangles cannot provide a reliable hover target.
 - **Concurrent mutation**: adding, removing, or replacing a row, cell, drag-handle row, or `<col>` during the gesture is
   not detected. Cancellation may then move the wrong nodes or fail.
 - **Framework-managed DOM or virtualized tables**: only the rendered DOM is reordered. A subsequent render may discard

@@ -21,7 +21,6 @@ interface Drag extends Press
 	col?:      HTMLTableColElement
 	direction: Direction
 	external:  boolean
-	hovered?:  HTMLTableCellElement
 	index:     number
 	initial:   number
 	maximum:   number
@@ -150,7 +149,6 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		if (this.press?.header === previous) this.press.header = replacement
 		if (this.drag) {
 			if (this.drag.header === previous) this.drag.header = replacement
-			if (this.drag.hovered === previous) this.drag.hovered = replacement
 			this.drag.cells = this.drag.cells.map(cell => cell === previous ? replacement : cell)
 			for (const name of ['adding', 'column-reorder', 'moving', 'removing']) {
 				if (previous.classList.contains(name)) replacement.classList.add(name)
@@ -392,15 +390,16 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 
 	protected target(drag: Drag, direction: Direction)
 	{
+		if (!direction) return drag.index
 		const headers = Array.from(this.triggerRow().cells)
 		const hovered = headers.slice(drag.minimum, drag.maximum + 1)
 			.find(header => drag.x < header.getBoundingClientRect().right) ?? headers[drag.maximum]
-		const previous = drag.hovered
-		drag.hovered = hovered
-		if (hovered === previous || hovered === drag.header) return drag.index
-		const index = headers.indexOf(hovered)
-		// Keep the hovered column's identity across reordering and direction changes within that column.
-		return !previous || direction * (index - headers.indexOf(previous)) > 0 ? index : drag.index
+		if (hovered === drag.header) return drag.index
+		let index = headers.indexOf(hovered)
+		// Removing the source shifts the hovered column's index when it was to its right.
+		if (drag.index < index) index --
+		if (direction > 0) index ++
+		return index
 	}
 
 	protected triggerRow()

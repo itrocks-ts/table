@@ -314,10 +314,10 @@ It rejects an active header interaction and returns false for a missing or fixed
 preserves an active header gesture during asynchronous cell replacement. `TableFreeze.refresh()` recalculates sticky
 offsets after structural changes. `Table.refreshStyleSheets()` reapplies the managed styles.
 
-Internal and external drags share one placement rule. The first hovered column establishes placement; subsequent
-placement changes require entering a different column in the direction of pointer movement or automatic scrolling.
-Reversing direction within the same column keeps placement unchanged. Hover tracking retains column identity across
-reordering and asynchronous cell replacement, with no width-dependent crossing threshold.
+Internal and external drags share one placement rule. Hovering the source column leaves its position unchanged.
+Over another column, moving left places the source before it; moving right places the source after it.
+Placement uses the current pointer or automatic scrolling direction, without retaining the previous hovered column.
+Cells and the corresponding `<col>` are moved only when the resulting index changes.
 
 `TableColumnReorder.scrollContainer()` exposes the existing horizontal scroll owner for table plugins.
 `TableFreeze.visibleInnerRect()` returns the area between rendered sticky cells, including tables configured through

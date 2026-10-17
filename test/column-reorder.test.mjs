@@ -419,56 +419,24 @@ test('unexpected capture loss restores order and clears the drag without saving'
 	finally { f.reorder.finish(false); f.restore() }
 })
 
-test('one-pixel external movement cannot reverse placement around a wider column', () => {
-	for (const adding of [false, true]) for (const direction of [-1, 1]) {
+test('placement follows direction within the same wide column in every drag mode', () => {
+	for (const mode of ['addition', 'external', 'internal']) for (const direction of [-1, 1]) {
 		const f = fixture({}, direction < 0 ? ['select', 'wide', 'new'] : ['select', 'new', 'wide'])
 		try {
-			for (const row of f.rows) for (const cell of row.cells) {
+			const columns = f.makeRow()
+			const rows = [...f.rows, columns]
+			f.element.querySelectorAll = () => columns.cells
+			let mutations = 0
+			for (const row of rows) for (const cell of row.cells) {
 				const width = cell => cell.name === 'wide' ? 200 : 100
 				cell.getBoundingClientRect = () => {
 					const left = row.cells.slice(0, row.cells.indexOf(cell))
 						.reduce((sum, previous) => sum + width(previous), 0)
 					return { left, right: left + width(cell), top: 100, bottom: 140 }
 				}
-			}
-			const header = f.rows[0].cells.find(cell => cell.name === 'new')
-			const point = clientX => ({ clientX, clientY: 120, pointerId: 1, pointerType: 'mouse' })
-			const start = direction < 0 ? 250 : 220
-			const operation = f.reorder.beginExternal(header, point(start), { adding, removal: true })
-			f.reorder.animate(0)
-			const index = f.rows[0].cells.indexOf(header)
-			assert.equal(index, direction < 0 ? 1 : 2)
-			for (let step = 1; step <= 20; step ++) {
-				operation.move(point(start + direction * step))
-				f.reorder.animate(step * 16)
-				assert.equal(f.rows[0].cells.indexOf(header), index, `direction ${direction}, step ${step}`)
-			}
-			// Reversing inside the same wide column is not a new crossing.
-			operation.move(point(direction < 0 ? 310 : 190))
-			f.reorder.animate(400)
-			assert.equal(f.rows[0].cells.indexOf(header), index)
-			operation.move(point(direction < 0 ? 190 : 310))
-			f.reorder.animate(416)
-			operation.move(point(direction < 0 ? 210 : 290))
-			f.reorder.animate(432)
-			assert.equal(f.rows[0].cells.indexOf(header), direction < 0 ? 2 : 1)
-			operation.cancel()
-		}
-		finally { f.reorder.finish(false); f.restore() }
-	}
-})
-
-
-test('turning around within a wide hovered column waits for exit and re-entry in every drag mode', () => {
-	for (const mode of ['addition', 'external', 'internal']) for (const direction of [-1, 1]) {
-		const f = fixture({}, direction < 0 ? ['select', 'wide', 'new'] : ['select', 'new', 'wide'])
-		try {
-			for (const row of f.rows) for (const cell of row.cells) {
-				const width = cell => cell.name === 'wide' ? 200 : 100
-				cell.getBoundingClientRect = () => {
-					const left = row.cells.slice(0, row.cells.indexOf(cell))
-						.reduce((sum, previous) => sum + width(previous), 0)
-					return { left, right: left + width(cell), top: 100, bottom: 140 }
+				for (const method of ['after', 'before']) {
+					const insert = cell[method].bind(cell)
+					cell[method] = source => { mutations ++; insert(source) }
 				}
 			}
 			const header = f.rows[0].cells.find(cell => cell.name === 'new')
@@ -483,21 +451,46 @@ test('turning around within a wide hovered column waits for exit and re-entry in
 			else operation = f.reorder.beginExternal(header, point(start), {
 				adding: mode === 'addition', removal: true
 			})
-			f.reorder.animate(0)
-			const index = f.rows[0].cells.indexOf(header)
-			assert.equal(index, direction < 0 ? 1 : 2)
-			// Reverse twice without leaving the same large column.
-			for (const x of [start + direction * 2, start, start - direction * 2, start]) {
-				operation.move(point(x))
-				f.reorder.animate(16)
-				assert.equal(f.rows[0].cells.indexOf(header), index, `${mode}, direction ${direction}, pointer ${x}`)
+			const expectIndex = index => {
+				for (const row of rows) assert.equal(row.cells.indexOf(row.cells.find(cell => cell.name === 'new')), index)
 			}
-			operation.move(point(direction < 0 ? 190 : 310))
+			f.reorder.animate(0)
+			const index = direction < 0 ? 1 : 2
+			expectIndex(index)
+			assert.equal(mutations, rows.length)
+			// Continuing in the same direction keeps the same slot beside the wide column.
+			operation.move(point(start + direction))
+			f.reorder.animate(16)
+			expectIndex(index)
+			assert.equal(mutations, rows.length)
+			// Reversing over that same wide column immediately places the source on its other side.
+			operation.move(point(start))
 			f.reorder.animate(32)
-			assert.equal(f.rows[0].cells.indexOf(header), index)
-			operation.move(point(direction < 0 ? 210 : 290))
+			expectIndex(direction < 0 ? 2 : 1)
+			assert.equal(mutations, 2 * rows.length)
+			// Moving inside the source, then leaving the pointer stationary, does not touch the order.
+			const rect = header.getBoundingClientRect()
+			operation.move(point((rect.left + rect.right) / 2))
 			f.reorder.animate(48)
-			assert.equal(f.rows[0].cells.indexOf(header), direction < 0 ? 2 : 1)
+			f.reorder.animate(64)
+			expectIndex(direction < 0 ? 2 : 1)
+			assert.equal(mutations, 2 * rows.length)
+		}
+		finally { f.reorder.finish(false); f.restore() }
+	}
+})
+
+test('a fast drag inserts beside a distant column in either direction', () => {
+	for (const direction of [-1, 1]) {
+		const f = fixture({}, ['select', 'name', 'email', 'city', 'country'])
+		try {
+			const header = f.rows[0].cells[direction < 0 ? 4 : 1]
+			const rect = header.getBoundingClientRect()
+			f.reorder.start({ header, id: 1, origin: (rect.left + rect.right) / 2, y: 120 },
+				direction < 0 ? 150 : 450, 120)
+			f.reorder.animate(0)
+			for (const row of f.rows) assert.equal(row.cells.indexOf(row.cells.find(cell => cell.name === header.name)),
+				direction < 0 ? 1 : 4)
 		}
 		finally { f.reorder.finish(false); f.restore() }
 	}

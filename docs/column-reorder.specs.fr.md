@@ -26,11 +26,11 @@ framework, et ne persiste pas l'ordre choisi.
 ### Réordonnancement visible
 
 - La colonne source reste une vraie colonne : aucun clone, placeholder ou élément flottant ne suit le pointeur.
-- Quand le pointeur franchit de 10 pixels la limite physique d'une colonne voisine, la source est insérée à cette
-  position. Un mouvement rapide peut franchir plusieurs colonnes en une seule opération.
-- Le déplacement est horizontal et continue lorsque le pointeur se trouve au-dessus, au-dessous ou en dehors de la
-  table. Sa direction réelle doit être prise en compte pour éviter les allers-retours causés par un changement de
-  largeur après insertion.
+- Survoler la colonne source ne change pas sa position. Au-dessus d'une autre colonne, un mouvement vers la gauche
+  insère la source avant celle-ci ; un mouvement vers la droite l'insère après. Le survol précédent n'est pas mémorisé.
+- Sans mouvement du pointeur ni défilement automatique, aucun placement n'est effectué. Les nœuds ne sont déplacés que
+  si l'index cible change.
+- Le réordonnancement est horizontal et continue lorsque le pointeur est au-dessus, en dessous ou hors de la table.
 - Toutes les cellules de la colonne sont déplacées ensemble dans le `thead`, chaque `tbody` et le `tfoot`. Si la table
   possède un `colgroup` simple, le `<col>` correspondant est déplacé avec elles.
 - Les nœuds DOM sont déplacés, et non recréés : leur identité, leurs listeners et leurs valeurs sont conservés. L'ordre
@@ -119,7 +119,7 @@ Le code actuel fournit déjà le parcours utilisateur principal :
 - seuil horizontal configurable, capture du pointeur et regroupement des calculs avec `requestAnimationFrame` ;
 - insertion directe et en temps réel de la cellule du même index dans toutes les lignes de `table.rows` ;
 - déplacement du `<col>` correspondant lorsqu'il est trouvé ;
-- pénétration de 10 pixels, mémorisation du sens et réévaluation des rectangles à chaque frame utile ;
+- placement avant ou après la colonne survolée selon le sens du mouvement, sans mémorisation du survol précédent ;
 - auto-scroll du premier ancêtre horizontalement scrollable, avec zones et vitesse conformes aux valeurs spécifiées ;
 - validation au `pointerup`, restauration sur Échap, `pointercancel` et reset, et suppression du clic suivant ;
 - classes `.column-reorder`, callback `onReorder`, barrières `isReorderable` et intégration avec Freeze.
