@@ -263,8 +263,8 @@ Callbacks own safe rendering, row identity and data access. If row elements chan
 error rather than applying stale positional values. Before retry, the consumer updates its callbacks' row data to
 match the current view.
 
-- `add(source): Promise<'added' | 'existing'>` appends before right-frozen columns, reveals and highlights. It resolves
-  once the real placeholder column is committed, independently of optional values. A repeated id reveals/highlights its
+- `add(source, options?): Promise<'added' | 'existing'>` appends before right-frozen columns, reveals and highlights.
+  It resolves once the real placeholder column is committed, independently of optional values. A repeated id reveals/highlights its
   existing position, without invoking its creation/loading callbacks or issuing another commit.
 - `reveal(id): void` scrolls the horizontal container only as needed, accounting for frozen bounds.
 - `highlight(id): void` applies the same green/light/theme flash for new and existing columns, cleans up after 350 ms,
@@ -287,13 +287,17 @@ match the current view.
 - `retry(id): Promise<void>` retries a failed value callback. Failure retains the committed column and marks it with
   `.column-add-error`; data cells receive a discreet red background and the addition flash stops.
   It never confirms another addition. The plugin adds no error text, retry control or automatic retry.
-- `begin(source): ColumnTransaction` creates a real provisional column without committing it. Its `ready` promise waits
-  for optional values and resolves after error notification as well. `moveTo(index)` reuses public reorder placement
+- `begin(source, options?): ColumnTransaction` creates a real provisional column without committing it.
+  Its `ready` promise waits for optional values and resolves after error notification as well. `moveTo(index)` reuses public reorder placement
   and its existing boundaries. `commit()` validates it and returns `added` or `existing`; repeating commit returns
   `existing`. `cancel()` aborts values, removes new provisional cells or restores an existing column's position.
   Completed/cancelled handles cannot move a column. `begin()` itself installs no pointer transport.
 - `dispose(): void` cancels provisional operations, aborts outstanding values and removes flash resources. Committed
   columns remain. `Table.reset()` invokes disposal automatically; call disposal when removing the owning view.
+
+`ColumnCreationOptions` is shared by `add` and `begin`. `hidden: true` inserts hidden cells and a hidden `col`;
+loaded replacements retain that visibility. `effects: false` skips width animation, flash and automatic scroll for both
+creation and loaded values. Loading still starts immediately. Pass both options to prepare a column for pointer entry.
 
 `TableColumnAddOptions.identify(header)` defaults to `header.dataset.columnId`. Added and loaded headers carry this
 opaque attribute so identity survives plugin resets. A custom callback can identify pre-existing columns differently.
@@ -318,10 +322,10 @@ including header-backed tables after addition, asynchronous replacement or reset
 
 ### External pointer transport
 
-`beginExternal(source, sample): ColumnOperation` immediately creates a hidden provisional column and starts loading
-its values. The cells and optional `col` stay hidden until the pointer first enters the visible table; loaded replacements
+`beginExternal(source, sample, options?): ColumnOperation` immediately creates a hidden provisional column and starts
+loading its values. The cells and optional `col` stay hidden until the pointer first enters the visible table; loaded replacements
 preserve that visibility. On entry, the column appears with any values already received and starts following reorder
-geometry. Reusing an existing id keeps its column visible throughout the gesture.
+geometry. Reusing an existing id preserves its visibility, including a committed hidden column prepared with `begin`.
 The structural `PointerSample` contains `pointerId`, `pointerType`, `clientX` and `clientY`. The source owns capture.
 `move(sample)` uses the existing reorder engine, including frozen boundaries and visible-edge autoscroll.
 `finish(sample)` resolves to `added`, `moved` or `cancelled`; an outside drop cancels without a fallback insertion.
@@ -333,9 +337,17 @@ Optional `ColumnSource.accept(signal)` validates host admission independently of
 waiting for `load`. Rejection rolls back and rejects `finish`. An omitted callback accepts immediately. Value errors
 remain retryable and do not reject a valid drop. The host must keep admission independent of its data request.
 
-`TableColumnReorder.beginExternal(header, sample): ExternalColumnOperation` is the lower-level public extension for
-an already attached column. Its `move`, `hold`, `finish` and `cancel` methods share header-origin geometry and
+`TableColumnReorder.beginExternal(header, sample, options?): ExternalColumnOperation` is the lower-level public
+extension for an already attached column. Its `move`, `hold`, `finish` and `cancel` methods share header-origin geometry and
 placement.
 `hold(sample)` settles and pauses autoscroll while retaining exclusivity; it returns whether the target is valid.
-`finish(sample)` releases the gesture and returns acceptance. It never calls header reorder/removal notifications;
+`finish(sample)` releases the gesture and returns acceptance. External reordering leaves persistence to its owner;
 the owning addition transaction emits its distinct commit notification. Header-origin gestures retain their callbacks.
+
+Both external entry points accept `ColumnDragOptions`. `adding: true` applies `.adding` for a green addition indicator
+instead of `.moving`, and removes the newly created column on cancellation. `removal: true` enables the standard
+header-origin removal on an outside drop, including a hidden column that never entered the table. Removal invokes
+`onRemove` once; the higher-level operation resolves to `removed`. The defaults preserve preview cancellation.
+Hidden cells and their `col` become visible on first pointer entry, without an opening animation or automatic reveal
+scroll. `onReveal()` observes this transition; the addition wrapper also refreshes frozen geometry. Replacement cells
+preserve hidden state and active indicators while values load.

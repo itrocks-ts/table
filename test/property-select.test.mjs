@@ -386,3 +386,56 @@ test('loaded values retain the removal flash and are removed at the same positio
 	}
 	finally { f.reset() }
 })
+
+test('hidden committed additions load without effects, reveal on entry and use standard drag removal', async () => {
+	for (const entered of [false, true]) for (const loaded of [false, true]) {
+		const f = externalFixture(), values = deferred(), removals = []
+		try {
+			const reorder = f.addition.of.plugins.TableColumnReorder
+			reorder.options.onRemove = header => removals.push(header.dataset.columnId)
+			const source = { id: 'new', create: () => f.content('pending'), load: () => values.promise }
+			const creation = f.addition.begin(source, { effects: false, hidden: true })
+			creation.commit()
+			const drag = f.addition.beginExternal(source, point(600), { adding: true, removal: true })
+			assert.ok(f.rows.every(row => row.cells[2].hidden))
+			assert.ok(f.rows.every(row => !row.cells[2].classList.contains('column-add-highlight')))
+			if (loaded) {
+				values.resolve(f.content('loaded'))
+				await creation.ready
+				assert.ok(f.rows.every(row => row.cells[2].hidden))
+				assert.ok(f.rows.every(row => !row.cells[2].classList.contains('column-add-highlight')))
+			}
+			if (entered) {
+				drag.move(point(250))
+				assert.ok(f.rows.every(row => !row.cells[2].hidden))
+				assert.ok(f.rows.every(row => row.cells[2].classList.contains('adding')))
+				assert.ok(f.rows.every(row => !row.cells[2].classList.contains('moving')))
+			}
+			assert.equal(await drag.finish(point(600)), 'removed')
+			assert.deepEqual(removals, ['new'])
+			assert.ok(f.rows.every(row => row.cells.length === 2))
+			if (!loaded) values.resolve(f.content('late'))
+			await creation.ready
+			assert.ok(f.rows.every(row => row.cells.length === 2))
+		}
+		finally { f.restore() }
+	}
+})
+
+test('addition indicators survive values arriving after table entry and clear at drop', async () => {
+	const f = externalFixture(), values = deferred()
+	try {
+		const source = { id: 'new', create: () => f.content('pending'), load: () => values.promise }
+		const creation = f.addition.begin(source, { effects: false, hidden: true })
+		creation.commit()
+		const drag = f.addition.beginExternal(source, point(600), { adding: true, removal: true })
+		drag.move(point(250))
+		values.resolve(f.content('loaded'))
+		await creation.ready
+		assert.ok(f.rows.every(row => row.cells[2].classList.contains('adding')))
+		assert.ok(f.rows.every(row => !row.cells[2].classList.contains('column-add-highlight')))
+		assert.equal(await drag.finish(point(250)), 'moved')
+		assert.ok(f.rows.every(row => !row.cells[2].classList.contains('adding')))
+	}
+	finally { f.restore() }
+})
