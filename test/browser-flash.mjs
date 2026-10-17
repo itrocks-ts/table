@@ -315,12 +315,21 @@ try {
 					await frame()
 					right.push(indices())
 				}
-				await drag.finish(pointer(start + 20))
-				return { left, right }
+				const wide = element.querySelector('[data-column-id="wide"]').getBoundingClientRect()
+				drag.move(pointer(wide.left - 5))
+				await frame()
+				const exited = indices()
+				drag.move(pointer(wide.left + 5))
+				await frame()
+				const reentered = indices()
+				await drag.finish(pointer(wide.left + 5))
+				return { exited, left, reentered, right }
 			}, loadedBeforeEntry)
 			assert.deepEqual(positions.left, Array(21).fill(1))
-			assert.deepEqual(positions.right, Array(20).fill(2))
-			console.log('PASS one-pixel addition movement beside a wide column', { loadedBeforeEntry })
+			assert.deepEqual(positions.right, Array(20).fill(1))
+			assert.equal(positions.exited, 1)
+			assert.equal(positions.reentered, 2)
+			console.log('PASS wide-column turnarounds wait for exit and re-entry', { loadedBeforeEntry })
 		}
 		await page.close()
 	}

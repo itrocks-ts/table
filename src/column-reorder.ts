@@ -21,12 +21,12 @@ interface Drag extends Press
 	col?:      HTMLTableColElement
 	direction: Direction
 	external:  boolean
+	hovered?:  HTMLTableCellElement
 	index:     number
 	initial:   number
 	maximum:   number
 	minimum:   number
 	onReveal?: () => void
-	positioned: boolean
 	removal:   boolean
 	remove:    boolean
 	rows:      HTMLTableRowElement[]
@@ -48,7 +48,6 @@ let activeDrag: TableColumnReorder | undefined
 
 const clamp          = (value: number) => Math.max(0, Math.min(1, value))
 const maxScrollSpeed = 800
-const penetration    = 10
 const scrollZone     = 50
 
 export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
@@ -69,9 +68,8 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		const scrollDirection  = this.scroll(drag, time)
 		if (scrollDirection) this.requestFrame()
 		const direction = pointerDirection || scrollDirection
-		const target    = direction ? this.target(drag, direction) : drag.index
+		const target    = this.target(drag, direction)
 		if (target !== drag.index) this.move(drag, target)
-		drag.positioned = true
 	}
 
 	/** The source owns pointer capture; this operation owns target geometry and rollback. */
@@ -152,6 +150,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		if (this.press?.header === previous) this.press.header = replacement
 		if (this.drag) {
 			if (this.drag.header === previous) this.drag.header = replacement
+			if (this.drag.hovered === previous) this.drag.hovered = replacement
 			this.drag.cells = this.drag.cells.map(cell => cell === previous ? replacement : cell)
 			for (const name of ['adding', 'column-reorder', 'moving', 'removing']) {
 				if (previous.classList.contains(name)) replacement.classList.add(name)
@@ -353,7 +352,6 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 		const initial     = headers.indexOf(press.header)
 		const rows        = this.rows()
 		const columns     = this.of.element.querySelectorAll<HTMLTableColElement>(':scope > colgroup > col')
-		const source      = press.header.getBoundingClientRect()
 		const reorderable = headers.map(header => (external || !header.classList.contains('column-add-provisional'))
 			&& (this.options.isReorderable?.(header) ?? true))
 		if (!reorderable[initial]) return
@@ -367,13 +365,11 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 			...press,
 			adding: options.adding ?? false,
 			onReveal: options.onReveal,
-			positioned: !external,
 			removal: options.removal ?? !external,
 			external,
 			cells:     rows.map(row => row.cells[initial]),
 			col:       columns[initial],
-			direction: external ? (x < source.left ? -1 : x > source.right ? 1 : 0)
-				: Math.sign(x - press.origin) as Direction,
+			direction: Math.sign(x - press.origin) as Direction,
 			index:     initial,
 			initial,
 			maximum,
@@ -396,19 +392,15 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 
 	protected target(drag: Drag, direction: Direction)
 	{
-		const headers = this.triggerRow().cells
-		let target    = drag.index
-		for (
-			let index = drag.index + direction;
-			(index >= drag.minimum) && (index <= drag.maximum);
-			index += direction
-		) {
-			const rect = headers[index].getBoundingClientRect()
-			const edge = direction > 0 ? rect.left : rect.right
-			if (direction * (drag.x - edge) < penetration) break
-			target = index
-		}
-		return target
+		const headers = Array.from(this.triggerRow().cells)
+		const hovered = headers.slice(drag.minimum, drag.maximum + 1)
+			.find(header => drag.x < header.getBoundingClientRect().right) ?? headers[drag.maximum]
+		const previous = drag.hovered
+		drag.hovered = hovered
+		if (hovered === previous || hovered === drag.header) return drag.index
+		const index = headers.indexOf(hovered)
+		// Keep the hovered column's identity across reordering and direction changes within that column.
+		return !previous || direction * (index - headers.indexOf(previous)) > 0 ? index : drag.index
 	}
 
 	protected triggerRow()
@@ -442,8 +434,6 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 				if (drag.col) drag.col.hidden = false
 				drag.onReveal?.()
 				drag.scroll = this.scrollContainer()
-				const rect = drag.header.getBoundingClientRect()
-				drag.direction = drag.x < rect.left ? -1 : drag.x > rect.right ? 1 : 0
 			}
 		}
 		if (this.options.onRemove || drag.external) {
@@ -462,10 +452,7 @@ export class TableColumnReorder extends Plugin<Table, TableColumnReorderOptions>
 	{
 		const drag = this.drag!
 		if ((x === drag.x) && (y === drag.y)) return
-		// Only the first placement aligns an external pointer with its attached column.
-		const source = drag.positioned ? undefined : drag.header.getBoundingClientRect()
-		drag.direction = source ? (x === drag.x ? 0 : x < source.left ? -1 : x > source.right ? 1 : 0)
-			: Math.sign(x - drag.x) as Direction
+		drag.direction = Math.sign(x - drag.x) as Direction
 		drag.x         = x
 		drag.y         = y
 		this.updateState(drag)

@@ -443,11 +443,61 @@ test('one-pixel external movement cannot reverse placement around a wider column
 				f.reorder.animate(step * 16)
 				assert.equal(f.rows[0].cells.indexOf(header), index, `direction ${direction}, step ${step}`)
 			}
-			// Once the pointer really reverses, crossing the neighbouring edge still swaps back.
+			// Reversing inside the same wide column is not a new crossing.
 			operation.move(point(direction < 0 ? 310 : 190))
 			f.reorder.animate(400)
+			assert.equal(f.rows[0].cells.indexOf(header), index)
+			operation.move(point(direction < 0 ? 190 : 310))
+			f.reorder.animate(416)
+			operation.move(point(direction < 0 ? 210 : 290))
+			f.reorder.animate(432)
 			assert.equal(f.rows[0].cells.indexOf(header), direction < 0 ? 2 : 1)
 			operation.cancel()
+		}
+		finally { f.reorder.finish(false); f.restore() }
+	}
+})
+
+
+test('turning around within a wide hovered column waits for exit and re-entry in every drag mode', () => {
+	for (const mode of ['addition', 'external', 'internal']) for (const direction of [-1, 1]) {
+		const f = fixture({}, direction < 0 ? ['select', 'wide', 'new'] : ['select', 'new', 'wide'])
+		try {
+			for (const row of f.rows) for (const cell of row.cells) {
+				const width = cell => cell.name === 'wide' ? 200 : 100
+				cell.getBoundingClientRect = () => {
+					const left = row.cells.slice(0, row.cells.indexOf(cell))
+						.reduce((sum, previous) => sum + width(previous), 0)
+					return { left, right: left + width(cell), top: 100, bottom: 140 }
+				}
+			}
+			const header = f.rows[0].cells.find(cell => cell.name === 'new')
+			const point = clientX => ({ clientX, clientY: 120, pointerId: 1, pointerType: 'mouse' })
+			const start = direction < 0 ? 250 : 220
+			let operation
+			if (mode === 'internal') {
+				const rect = header.getBoundingClientRect()
+				f.reorder.start({ header, id: 1, origin: (rect.left + rect.right) / 2, y: 120 }, start, 120)
+				operation = { move: sample => f.reorder.updatePointer(sample.clientX, sample.clientY) }
+			}
+			else operation = f.reorder.beginExternal(header, point(start), {
+				adding: mode === 'addition', removal: true
+			})
+			f.reorder.animate(0)
+			const index = f.rows[0].cells.indexOf(header)
+			assert.equal(index, direction < 0 ? 1 : 2)
+			// Reverse twice without leaving the same large column.
+			for (const x of [start + direction * 2, start, start - direction * 2, start]) {
+				operation.move(point(x))
+				f.reorder.animate(16)
+				assert.equal(f.rows[0].cells.indexOf(header), index, `${mode}, direction ${direction}, pointer ${x}`)
+			}
+			operation.move(point(direction < 0 ? 190 : 310))
+			f.reorder.animate(32)
+			assert.equal(f.rows[0].cells.indexOf(header), index)
+			operation.move(point(direction < 0 ? 210 : 290))
+			f.reorder.animate(48)
+			assert.equal(f.rows[0].cells.indexOf(header), direction < 0 ? 2 : 1)
 		}
 		finally { f.reorder.finish(false); f.restore() }
 	}
