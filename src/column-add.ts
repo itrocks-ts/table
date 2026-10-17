@@ -300,7 +300,7 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 			this.highlights.set(cell, setTimeout(() => {
 				cell.classList.remove('column-add-highlight')
 				this.highlights.delete(cell)
-			}, 900))
+			}, 350))
 		}
 	}
 
@@ -418,7 +418,7 @@ export class TableColumnAdd extends Plugin<Table, TableColumnAddOptions>
 					signal.removeEventListener('abort', finish)
 					resolve()
 				}
-				const timer = setTimeout(finish, 150)
+				const timer = setTimeout(finish, 350)
 				signal.addEventListener('abort', finish, { once: true })
 			})
 			const current = this.find(id)

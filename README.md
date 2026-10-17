@@ -267,9 +267,9 @@ match the current view.
   once the real placeholder column is committed, independently of optional values. A repeated id reveals/highlights its
   existing position, without invoking its creation/loading callbacks or issuing another commit.
 - `reveal(id): void` scrolls the horizontal container only as needed, accounting for frozen bounds.
-- `highlight(id): void` applies the same green/light/theme flash for new and existing columns, cleans up after 900 ms,
+- `highlight(id): void` applies the same green/light/theme flash for new and existing columns, cleans up after 350 ms,
   honours reduced motion and preserves keyboard focus and row selection.
-- `remove(id, signal?): Promise<boolean>` reveals a column, flashes its cells red with an immediate 150 ms fade,
+- `remove(id, signal?): Promise<boolean>` reveals a column, flashes its cells red with an immediate 350 ms fade,
   then removes the header, body/footer cells and matching `col`. It returns false for a missing column or cancellation. Repeated calls share the
   pending removal; abort, disposal and reset clear the flash without deletion. Late values cannot restore a removed
   column. Reduced motion uses a static red outline. The host persists the resulting configuration.

@@ -5,11 +5,11 @@ table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td)[hidden] {
 
 table.itrocks > :is(thead, tbody, tfoot) > tr > :is(th, td) {
 	&.column-add-highlight {
-		animation: itrocks-column-add-flash 850ms ease-out;
+		animation: itrocks-column-add-flash 350ms ease-out;
 	}
 
 	&.column-remove-highlight {
-		animation: itrocks-column-remove-flash 150ms ease-out;
+		animation: itrocks-column-remove-flash 350ms ease-out;
 	}
 
 	&.column-add-loading {

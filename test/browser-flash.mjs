@@ -37,6 +37,8 @@ try {
 			const header = document.querySelector('th')
 			addition.highlight('name')
 			const greenDuration = getComputedStyle(header).animationDuration
+			await new Promise(resolve => setTimeout(resolve, 400))
+			const greenCleared = !header.classList.contains('column-add-highlight')
 			const started = performance.now()
 			const removal = addition.remove('name')
 			const redDuration = getComputedStyle(header).animationDuration
@@ -51,16 +53,17 @@ try {
 				animation.play()
 			}
 			const removed = await removal
-			return { elapsed: performance.now() - started, fadesImmediately, greenDuration,
+			return { elapsed: performance.now() - started, fadesImmediately, greenCleared, greenDuration,
 				redDuration, removed, remaining: document.querySelectorAll('th, td').length }
 		})
-		assert.equal(result.greenDuration, reducedMotion === 'reduce' ? '0s' : '0.85s')
-		assert.equal(result.redDuration, reducedMotion === 'reduce' ? '0s' : '0.15s')
+		assert.equal(result.greenDuration, reducedMotion === 'reduce' ? '0s' : '0.35s')
+		assert.equal(result.redDuration, reducedMotion === 'reduce' ? '0s' : '0.35s')
+		assert.equal(result.greenCleared, true)
 		assert.equal(result.fadesImmediately, true)
 		assert.equal(result.removed, true)
 		assert.equal(result.remaining, 0)
-		assert.ok(result.elapsed >= 120 && result.elapsed < 500, JSON.stringify(result))
-		console.log('PASS short removal flash', reducedMotion, JSON.stringify(result))
+		assert.ok(result.elapsed >= 320 && result.elapsed < 650, JSON.stringify(result))
+		console.log('PASS matching 350 ms flashes', reducedMotion, JSON.stringify(result))
 		await page.close()
 	}
 }

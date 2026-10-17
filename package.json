@@ -53,5 +53,5 @@
 	"scripts": {
 		"build": "tsc && sass --no-source-map demo:demo src/column-add.scss:column-add.css && node ../prepare-module/prepare-module.js"
 	},
-	"version": "0.5.1"
+	"version": "0.5.2"
 }
