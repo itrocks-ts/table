@@ -269,21 +269,22 @@ match the current view.
 - `reveal(id): void` scrolls the horizontal container only as needed, accounting for frozen bounds.
 - `highlight(id): void` applies the same green/light/theme flash for new and existing columns, cleans up after 350 ms,
   honours reduced motion and preserves keyboard focus and row selection. Existing columns keep their content and width.
-- Columns appended at the right edge (before any right-frozen columns) appear at full width immediately, with their
-  heading, filter and placeholder cells visible in green. Loaded values appear immediately and scroll the table to its
-  right edge over 100 ms if needed. Reduced motion makes this scroll immediate.
-- Columns inserted between existing columns open from zero to their measured width over 100 ms.
-  The flash stays green until values arrive, then
-  fades over the remainder of 350 ms from opening, with a minimum fade of 100 ms. Content remains hidden until the
-  fade ends for value cells; the heading and filter become visible after the 100 ms opening. A non-breaking space
-  keeps masked cells painted and holds their measured width. Asynchronous values continue
-  opening from the current width towards the greater of the heading width and the loaded content width.
+- New columns show their heading, filter and placeholder cells immediately, and start one 350 ms addition flash.
+  Values arriving during the flash update the measured target width and remain masked until the flash finishes.
+  Values arriving afterwards are displayed immediately without another flash. Data loading never extends the flash.
+  Columns inserted between existing columns open over 100 ms; incoming values retarget their width.
+  Appended columns appear at full heading width and scroll to the new right edge over 100 ms when values require it.
+  Reduced motion disables width animation and makes scrolling immediate.
 - `remove(id, signal?): Promise<boolean>` reveals a column, shrinks it over 100 ms during a 300 ms red flash,
   hiding cell content immediately, then removes the header, body/footer cells and matching `col`. It returns false for
   a missing column or cancellation. Repeated calls share the pending removal; abort, disposal and reset clear the flash
   without deletion. Late values cannot restore a removed column. Cancellation restores the natural width.
   Reduced motion skips width animation and uses a static red outline.
   The host persists the resulting configuration.
+- `highlightMany(ids, opening?): void` starts addition highlights for all supplied columns in the same frame.
+- `removeMany(ids, signal?): Promise<boolean>` prepares every column before starting their red flashes in the same
+  frame and removes them after one shared delay. Cancellation clears the whole group's flash without deletion.
+  Missing columns return false; overlapping group removals reject. Single-column calls share pending removal.
 - `retry(id): Promise<void>` retries a failed value callback. Failure retains the committed column and marks it with
   `.column-add-error`; data cells receive a discreet red background and the addition flash stops.
   It never confirms another addition. The plugin adds no error text, retry control or automatic retry.
@@ -297,7 +298,9 @@ match the current view.
 
 `ColumnCreationOptions` is shared by `add` and `begin`. `hidden: true` inserts hidden cells and a hidden `col`;
 loaded replacements retain that visibility. `effects: false` skips width animation, flash and automatic scroll for both
-creation and loaded values. Loading still starts immediately. Pass both options to prepare a column for pointer entry.
+creation and loaded values. `effects: 'deferred'` lets a host create several columns, publish their selection state,
+then call `highlightMany(ids, true)` to start one shared flash before starting their shared request. Loading still starts
+immediately when a source provides it. Pass both options to prepare a column for pointer entry.
 
 `TableColumnAddOptions.identify(header)` defaults to `header.dataset.columnId`. Added and loaded headers carry this
 opaque attribute so identity survives plugin resets. A custom callback can identify pre-existing columns differently.

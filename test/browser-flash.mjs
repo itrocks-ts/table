@@ -170,25 +170,25 @@ try {
 				await addition.add({ id: 'metric', create: () => content('\u00a0'),
 					load: () => new Promise(resolve => { load = resolve }) })
 				const header = () => table.element.tHead.rows[0].cells[1]
-				const green = getComputedStyle(header()).backgroundColor
 				const space = table.element.tBodies[0].rows[0].lastElementChild.textContent === '\u00a0'
 				await new Promise(resolve => setTimeout(resolve, delay))
-				const held = header().classList.contains('column-add-highlight')
-					&& getComputedStyle(header()).animationName === 'none'
-					&& getComputedStyle(header()).backgroundColor === green
+				const active = header().classList.contains('column-add-highlight')
 				const elapsed = performance.now() - started
 				load(content('Loaded value'))
 				await new Promise(resolve => setTimeout(resolve, 0))
-				const duration = parseFloat(header().style.getPropertyValue('--column-fade'))
+				const duration = parseFloat(header().style.getPropertyValue('--column-fade')) || 0
+				const masked = table.element.tBodies[0].rows[0].lastElementChild
+					.classList.contains('column-add-values-hidden')
 				await new Promise(resolve => setTimeout(resolve, duration + 40))
 				const revealed = !header().classList.contains('column-add-highlight')
-				return { duration, elapsed, held, revealed, space }
+				return { active, duration, elapsed, masked, revealed, space }
 			}, delay)
-			assert.equal(flash.held, true, JSON.stringify(flash))
+			assert.equal(flash.active, delay < 350, JSON.stringify(flash))
+			assert.equal(flash.masked, delay < 350, JSON.stringify(flash))
 			assert.equal(flash.space, true)
-			assert.ok(Math.abs(flash.duration - Math.max(100, 350 - flash.elapsed)) < 25, JSON.stringify(flash))
+			assert.equal(flash.duration, delay < 350 ? 350 : 0, JSON.stringify(flash))
 			assert.equal(flash.revealed, true)
-			console.log('PASS green hold and remaining fade', { delay, ...flash })
+			console.log('PASS flash deadline independent of data arrival', { delay, ...flash })
 		}
 		for (const frozen of [false, true]) {
 			await page.goto(`http://127.0.0.1:${server.address().port}/`)
@@ -256,7 +256,7 @@ try {
 			})
 			assert.equal(result.revealed, true)
 			assert.ok(Math.abs(result.final - result.target) <= 1, JSON.stringify(result))
-			assert.equal(result.noExtraFrame, true)
+			assert.equal(result.noExtraFrame, true, JSON.stringify(result))
 			if (reducedMotion === 'no-preference') {
 				assert.ok(result.target > result.from + 20, JSON.stringify(result))
 				assert.ok(result.samples.some(sample => sample.left > result.from && sample.left < result.target - 1),

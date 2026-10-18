@@ -439,3 +439,52 @@ test('addition indicators survive values arriving after table entry and clear at
 	}
 	finally { f.restore() }
 })
+
+test('group removals measure first, flash together and share cancellation', async () => {
+	const f = fixture(), abort = new AbortController(), measured = [], revealed = []
+	try {
+		f.addition.reveal = id => revealed.push(id)
+		f.addition.measureColumn = header => {
+			assert.ok(f.rows.every(row => row.cells.every(cell => !cell.classList.contains('column-remove-highlight'))))
+			measured.push(header.name)
+		}
+		const removal = f.addition.removeMany(['a', 'b'], abort.signal)
+		assert.deepEqual(measured, ['a', 'b'])
+		assert.deepEqual(revealed, ['b'])
+		assert.ok(f.rows.every(row => row.cells.every(cell => cell.classList.contains('column-remove-highlight'))))
+		assert.equal(f.addition.remove('a'), removal)
+		abort.abort()
+		assert.equal(await removal, false)
+		assert.deepEqual(f.rows[0].cells.map(cell => cell.name), ['a', 'b'])
+		assert.ok(f.rows.every(row => row.cells.every(cell => !cell.classList.contains('column-remove-highlight'))))
+	}
+	finally { f.reset() }
+})
+
+test('group addition highlights measure every column before starting any flash', () => {
+	const f = fixture(), measured = []
+	try {
+		f.addition.measureColumn = header => {
+			assert.ok(f.rows.every(row => row.cells.every(cell => !cell.classList.contains('column-add-highlight'))))
+			measured.push(header.name)
+		}
+		f.addition.highlightMany(['a', 'b'])
+		assert.deepEqual(measured, ['a', 'b'])
+		assert.ok(f.rows.every(row => row.cells.every(cell => cell.classList.contains('column-add-highlight'))))
+	}
+	finally { f.reset() }
+})
+
+test('cancelling one removal preserves the shared flash expiry for its neighbours', async () => {
+	const f = fixture(), abort = new AbortController()
+	try {
+		f.addition.highlightMany(['a', 'b'])
+		const removal = f.addition.remove('a', abort.signal)
+		abort.abort()
+		assert.equal(await removal, false)
+		assert.ok(f.rows.every(row => row.cells[1].classList.contains('column-add-highlight')))
+		await new Promise(resolve => setTimeout(resolve, 400))
+		assert.ok(f.rows.every(row => !row.cells[1].classList.contains('column-add-highlight')))
+	}
+	finally { f.reset() }
+})
