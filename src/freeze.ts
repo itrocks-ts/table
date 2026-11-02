@@ -17,7 +17,7 @@ export class TableFreeze extends Plugin<Table>
 	leftColumnCount!:  number
 	rightColumnCount!: number
 	zIndex             = '1'
-	protected rules: string[] = []
+	protected rules:   string[] = []
 
 	init()
 	{
@@ -39,7 +39,9 @@ export class TableFreeze extends Plugin<Table>
 		const styles = this.of.styleSheet
 		for (const rule of this.rules) {
 			const index = styles.indexOf(rule)
-			if (index >= 0) styles.splice(index, 1)
+			if (index >= 0) {
+				styles.splice(index, 1)
+			}
 		}
 		// Measure natural positions, including header-backed columns that were previously sticky.
 		this.of.refreshStyleSheets()
@@ -52,7 +54,9 @@ export class TableFreeze extends Plugin<Table>
 		while (parent && (parent.scrollHeight <= parent.clientHeight)) {
 			parent = parent.parentElement
 		}
-		return parent ? ((parent instanceof HTMLHtmlElement) ? window : parent) : undefined
+		return parent
+			? ((parent instanceof HTMLHtmlElement) ? window : parent)
+			: undefined
 	}
 
 	protected countLeftColumns()
@@ -77,11 +81,13 @@ export class TableFreeze extends Plugin<Table>
 	{
 		const table = this.of
 		if (!table.element.tFoot?.rows.length) return
-		let counter = 1, bottom = .0, previousBottom = table.element.getBoundingClientRect().bottom
+		let counter        = 1
+		let bottom         = .0
+		let previousBottom = table.element.getBoundingClientRect().bottom
 		for (const row of Array.from(table.element.tFoot.querySelectorAll<HTMLTableRowElement>(':scope > tr')).reverse()) {
 			const actualBottom = row.getBoundingClientRect().bottom
-			bottom += previousBottom - actualBottom
-			previousBottom = actualBottom
+			bottom            += previousBottom - actualBottom
+			previousBottom     = actualBottom
 			table.styleSheet.push(`
 				${table.selector} > tfoot > tr:nth-last-child(${counter}) > * {
 					bottom: ${this.position(Math.floor(bottom), counter, row.firstElementChild as HTMLTableCellElement, 'bottom')};
@@ -103,11 +109,13 @@ export class TableFreeze extends Plugin<Table>
 		const table = this.of
 		if (!table.element.tHead?.rows.length) return
 		// Header measurements are in scrolled coordinates after refresh removes the sticky rules.
-		let counter = 1, top = .0, previousTop = table.element.getBoundingClientRect().top - table.element.scrollTop
+		let counter     = 1
+		let top         = .0
+		let previousTop = table.element.getBoundingClientRect().top - table.element.scrollTop
 		table.element.tHead.querySelectorAll<HTMLTableRowElement>(':scope > tr').forEach(row => {
 			const actualTop = row.getBoundingClientRect().top
-			top += actualTop - previousTop
-			previousTop = actualTop
+			top            += actualTop - previousTop
+			previousTop     = actualTop
 			table.styleSheet.push(`
 				${table.selector} > thead > tr:nth-child(${counter}) > * {
 					top: ${this.position(Math.ceil(top), counter, row.firstElementChild as HTMLTableCellElement, 'top')};
@@ -120,7 +128,7 @@ export class TableFreeze extends Plugin<Table>
 			${table.selector} > thead > tr > * {
 				position: sticky;
 				${zIndex}
-			}		
+			}
 		`)
 	}
 
@@ -130,11 +138,14 @@ export class TableFreeze extends Plugin<Table>
 		const table = this.of
 		const bodySel:   string[] = []
 		const cornerSel: string[] = []
-		let counter = 1, left = .0, previousLeft = table.element.getBoundingClientRect().left
+		// A scrolling table keeps its own bounds fixed while its natural column positions move.
+		let counter      = 1
+		let left         = .0
+		let previousLeft = table.element.getBoundingClientRect().left - table.element.scrollLeft
 		for (const colCell of Array.from(this.columns).slice(0, this.leftColumnCount)) {
 			const actualLeft = colCell.getBoundingClientRect().left
-			left += actualLeft - previousLeft
-			previousLeft = actualLeft
+			left            += actualLeft - previousLeft
+			previousLeft     = actualLeft
 			table.styleSheet.push(`
 				${table.selector} > * > tr > :nth-child(${counter}) {
 					left: ${this.position(Math.ceil(left), counter, colCell, 'left')};
@@ -167,8 +178,8 @@ export class TableFreeze extends Plugin<Table>
 		let counter = 1, right = .0, previousRight = table.element.getBoundingClientRect().right
 		for (const colCell of Array.from(this.columns).reverse().slice(0, this.rightColumnCount)) {
 			const actualRight = colCell.getBoundingClientRect().right
-			right += previousRight - actualRight
-			previousRight = actualRight
+			right            += previousRight - actualRight
+			previousRight     = actualRight
 			table.styleSheet.push(`
 				${table.selector} > * > tr > :nth-last-child(${counter}) {
 					right: ${this.position(Math.floor(right), counter, colCell, 'right')};
@@ -196,8 +207,8 @@ export class TableFreeze extends Plugin<Table>
 
 	protected getColumns()
 	{
-		const table = this.of
-		let columns = table.element.querySelectorAll<HTMLTableColElement>(':scope > colgroup > col')
+		const table   = this.of
+		let   columns = table.element.querySelectorAll<HTMLTableColElement>(':scope > colgroup > col')
 		if (!columns.length) {
 			columns = table.element.querySelectorAll<HTMLTableColElement>(':scope > thead > tr:first-child > *')
 			if (!columns.length) {
@@ -221,17 +232,22 @@ export class TableFreeze extends Plugin<Table>
 		const tableElement = this.of.element
 		const rect         = tableElement.getBoundingClientRect()
 		// Cols supply configuration and layout widths; only rendered cells have sticky viewport positions.
-		const cells = tableElement.tHead?.rows[0]?.cells ?? tableElement.tBodies[0]?.rows[0]?.cells
-		const left  = this.leftColumnCount && cells?.[this.leftColumnCount - 1]
-			? cells[this.leftColumnCount - 1].getBoundingClientRect().right : rect.left
-		const right = this.rightColumnCount && cells?.[cells.length - this.rightColumnCount]
-			? cells[cells.length - this.rightColumnCount].getBoundingClientRect().left : rect.right
-		const top    = tableElement.tHead?.lastElementChild?.firstElementChild?.getBoundingClientRect().bottom ?? rect.top
-		const bottom = tableElement.tFoot?.firstElementChild?.firstElementChild?.getBoundingClientRect().top ?? rect.bottom
-		rect.x      = left
-		rect.y      = top
-		rect.width  = Math.max(0, right - left)
-		rect.height = Math.max(0, bottom - top)
+		const cells = tableElement.tHead?.rows[0]?.cells
+			?? tableElement.tBodies[0]?.rows[0]?.cells
+		const left = (this.leftColumnCount && cells?.[this.leftColumnCount - 1])
+			? cells[this.leftColumnCount - 1].getBoundingClientRect().right
+			: rect.left
+		const right = (this.rightColumnCount && cells?.[cells.length - this.rightColumnCount])
+			? cells[cells.length - this.rightColumnCount].getBoundingClientRect().left
+			: rect.right
+		const top = tableElement.tHead?.lastElementChild?.firstElementChild?.getBoundingClientRect().bottom
+			?? rect.top
+		const bottom = tableElement.tFoot?.firstElementChild?.firstElementChild?.getBoundingClientRect().top
+			?? rect.bottom
+		rect.x       = left
+		rect.y       = top
+		rect.width   = Math.max(0, right - left)
+		rect.height  = Math.max(0, bottom - top)
 		return rect
 	}
 
